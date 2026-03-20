@@ -20,7 +20,15 @@ If you already have ThingsBoard running in the same namespace as a Service named
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
-  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (device_id DOUBLE PRECISION, temperature DOUBLE PRECISION); CREATE MATERIALIZED VIEW latest_temperature AS SELECT device_id, MAX(temperature) AS temperature FROM sensors GROUP BY device_id;'
+  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (
+    device_id DOUBLE PRECISION,
+    temperature DOUBLE PRECISION
+  );
+
+  CREATE MATERIALIZED VIEW latest_temperature AS
+  SELECT device_id, MAX(temperature) AS temperature
+  FROM sensors
+  GROUP BY device_id;'
 ```
 
 What this command is doing:
@@ -95,7 +103,15 @@ Install directly from GHCR:
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
-  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (device_id DOUBLE PRECISION, temperature DOUBLE PRECISION); CREATE MATERIALIZED VIEW latest_temperature AS SELECT device_id, MAX(temperature) AS temperature FROM sensors GROUP BY device_id;'
+  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (
+    device_id DOUBLE PRECISION,
+    temperature DOUBLE PRECISION
+  );
+
+  CREATE MATERIALIZED VIEW latest_temperature AS
+  SELECT device_id, MAX(temperature) AS temperature
+  FROM sensors
+  GROUP BY device_id;'
 ```
 
 ## Minimum install
@@ -106,7 +122,15 @@ If that matches your cluster, the smallest install from the repository root is:
 
 ```bash
 helm install coprocessor . \
-  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (device_id DOUBLE PRECISION, temperature DOUBLE PRECISION); CREATE MATERIALIZED VIEW latest_temperature AS SELECT device_id, MAX(temperature) AS temperature FROM sensors GROUP BY device_id;'
+  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (
+    device_id DOUBLE PRECISION,
+    temperature DOUBLE PRECISION
+  );
+
+  CREATE MATERIALIZED VIEW latest_temperature AS
+  SELECT device_id, MAX(temperature) AS temperature
+  FROM sensors
+  GROUP BY device_id;'
 ```
 
 Before installing, confirm the service name resolves the way the chart expects:
