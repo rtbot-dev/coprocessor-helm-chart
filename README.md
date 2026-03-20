@@ -1,6 +1,6 @@
 # Coprocessor Helm Chart
 
-The `coprocessor` chart lets ThingsBoard users run RtBot SQL on live device telemetry without hand-wiring the runtime stack. Install it beside an existing ThingsBoard deployment, provide one or more SQL files, and the chart stands up the ingestion, execution, and optional egress path needed to turn raw telemetry into derived analytics.
+The `coprocessor` chart lets ThingsBoard users run RtBot SQL on live device telemetry without hand-wiring the runtime stack. Install it beside an existing ThingsBoard deployment, and the chart now starts in a default-on demo mode that continuously emits telemetry, loads demo SQL, and can publish derived signals back into ThingsBoard. Later, disable the demo and provide your own SQL for a more professional deployment shape.
 
 This repository is the public release surface for the coprocessor Helm chart and the public `rtbot-redis` image.
 
@@ -15,30 +15,23 @@ Use this chart when you want to:
 
 ## Quick start
 
-If you already have ThingsBoard running in the same namespace as a Service named `thingsboard`, the fastest path is:
+If you already have ThingsBoard running in the same namespace as a Service named `thingsboard`, the fastest path is the built-in demo:
 
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
-  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (
-    device_id DOUBLE PRECISION,
-    temperature DOUBLE PRECISION
-  );
-
-  CREATE MATERIALIZED VIEW latest_temperature AS
-  SELECT device_id, MAX(temperature) AS temperature
-  FROM sensors
-  GROUP BY device_id;'
+  --set demo.admin.username=tenant@thingsboard.org \
+  --set demo.admin.password=change-me
 ```
 
 What this command is doing:
 
 - installing the `coprocessor` chart next to your existing ThingsBoard service
-- creating one SQL file inside the release named `01-demo.sql`
-- filling that file with the RtBot SQL text you passed inline
-- registering that SQL during the bootstrap job so the pipeline is ready to process telemetry
+- enabling the chart's default demo publisher and demo SQL bundle
+- logging into ThingsBoard with admin credentials, creating or reusing the demo device, and fetching its token
+- registering that token so derived demo telemetry can flow back into ThingsBoard
 
-If you would rather keep the SQL in a local file instead of writing it inline, see [Simple and advanced SQL file input](#simple-and-advanced-sql-file-input).
+If you already created a demo device yourself, replace the admin credentials with `--set demo.device.token=<device-access-token>`. If you are done with the walkthrough and want your own SQL instead, disable the demo with `--set demo.enabled=false`. See [Simple and advanced SQL file input](#simple-and-advanced-sql-file-input).
 
 ## How to tell it worked
 
@@ -52,6 +45,7 @@ You should see:
 
 - a `coprocessor` StatefulSet pod
 - a SQL bootstrap Job
+- a demo bootstrap Job and demo publisher Deployment when `demo.enabled=true`
 
 If those do not appear or do not become ready, continue with `tests/README.md` and the troubleshooting guidance in this repo.
 
@@ -72,8 +66,10 @@ If those do not appear or do not become ready, continue with `tests/README.md` a
 
 - one `StatefulSet`
 - one SQL bootstrap `Job` that waits for the first `rtbot-redis` pod and loads packaged SQL into it
+- one demo bootstrap `Job` that either auto-creates the demo device from ThingsBoard admin credentials or uses a supplied token
 - one `rtbot-redis` container for RtBot execution and state
-- one Redpanda Connect container for ingress and optional egress wiring
+- one stream-processing container for ingress and optional egress wiring
+- one demo publisher `Deployment` that continuously emits heartbeat and temperature telemetry when demo mode is enabled
 - one headless `Service` for the StatefulSet and one client-facing ingress `Service`
 - generated `ConfigMap` objects for SQL and Connect config unless you point at existing ones
 - an optional generated `Secret`
@@ -85,7 +81,7 @@ If those do not appear or do not become ready, continue with `tests/README.md` a
 - an existing ThingsBoard deployment that is reachable from this namespace
 - a StorageClass if `persistence.enabled=true`
 - an `rtbot-redis` image pull path that is valid for your environment; the chart default is `ghcr.io/rtbot-dev/rtbot-redis`
-- RtBot SQL files to load, either inline or in an existing ConfigMap
+- RtBot SQL files for the non-demo path, either inline or in an existing ConfigMap
 
 ## OCI distribution
 
@@ -103,34 +99,20 @@ Install directly from GHCR:
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
-  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (
-    device_id DOUBLE PRECISION,
-    temperature DOUBLE PRECISION
-  );
-
-  CREATE MATERIALIZED VIEW latest_temperature AS
-  SELECT device_id, MAX(temperature) AS temperature
-  FROM sensors
-  GROUP BY device_id;'
+  --set demo.admin.username=tenant@thingsboard.org \
+  --set demo.admin.password=change-me
 ```
 
 ## Minimum install
 
 The base chart assumes the common in-cluster setup: you already have ThingsBoard running in the same namespace, exposed as `http://thingsboard:8080`.
 
-If that matches your cluster, the smallest install from the repository root is:
+If that matches your cluster, the smallest install from the repository root is the demo-first path:
 
 ```bash
 helm install coprocessor . \
-  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (
-    device_id DOUBLE PRECISION,
-    temperature DOUBLE PRECISION
-  );
-
-  CREATE MATERIALIZED VIEW latest_temperature AS
-  SELECT device_id, MAX(temperature) AS temperature
-  FROM sensors
-  GROUP BY device_id;'
+  --set demo.admin.username=tenant@thingsboard.org \
+  --set demo.admin.password=change-me
 ```
 
 Before installing, confirm the service name resolves the way the chart expects:
@@ -145,21 +127,39 @@ That install renders:
 
 - the default ingress listener at `/ingest/{stream_name}`
 - the default ThingsBoard target at `http://thingsboard:8080`
+- the default demo SQL bundle with alive, moving-average, delta/trend, and anomaly-style signals
+- a demo publisher that continuously emits telemetry into `demo_sensors`
+- demo egress for `rtbot:mv:demo_signals`
 - persistent RtBot state in an `8Gi` PVC
 - a post-install/post-upgrade SQL bootstrap Job
+- a post-install/post-upgrade demo bootstrap Job
 - no generated secret unless `secret.create=true`
-- no egress pipeline unless `connect.egress.enabled=true`
+
+For a pre-provisioned demo device, use:
+
+```bash
+helm install coprocessor . \
+  --set demo.device.token=<device-access-token>
+```
+
+For professional use after the walkthrough, disable the demo and provide your own SQL package:
+
+```bash
+helm install coprocessor . \
+  --set demo.enabled=false \
+  --set-file sql.files.01-bootstrap\.sql=./sql/01-bootstrap.sql
+```
 
 ## Demo install path
 
-`values-demo.yaml` is the low-friction walkthrough profile. It keeps the same-namespace ThingsBoard default from the base chart, disables persistence so clusters without a default StorageClass still work, and embeds a tiny SQL example.
+`values-demo.yaml` is the low-friction walkthrough profile. It keeps the same-namespace ThingsBoard default from the base chart, keeps demo mode enabled, and disables persistence so clusters without a default StorageClass still work.
 
 ```bash
 helm install coprocessor-demo . \
   -f values-demo.yaml
 ```
 
-Use the demo profile when you want a fast walkthrough. Use base `values.yaml` when you already have ThingsBoard running in the namespace and only need to supply SQL. Reserve explicit URL overrides for production variants such as cross-namespace or external ThingsBoard deployments.
+Use the demo profile when you want a fast walkthrough. Fill either `demo.admin.*` to auto-create the device or `demo.device.token` to reuse a pre-provisioned one. For professional use, disable demo mode and switch to explicit SQL packaging plus production-oriented overrides.
 
 ## Install smoke testing
 
@@ -175,7 +175,7 @@ See `tests/README.md` for details and the list of `#480` scenarios that still re
 
 ## Production configuration guidance
 
-For production, treat these as the main override points:
+For production or other professional deployments, treat these as the main override points:
 
 - `images.*`: pin repositories and tags that match your registry policy; the base chart defaults `images.rtbotRedis.repository` to `ghcr.io/rtbot-dev/rtbot-redis`
 - `rtbotRedis.resources`, `connect.resources`, `sqlRunner.resources`: set requests and limits explicitly
@@ -184,6 +184,7 @@ For production, treat these as the main override points:
 - `nodeSelector`, `tolerations`, `affinity`: place workloads onto the right nodes
 - `connect.extraEnvFrom`, `sqlRunner.extraEnvFrom`, `rtbotRedis.extraEnvFrom`: reference existing Secrets or ConfigMaps for environment-driven settings
 - `thingsboard.existingSecret` and `thingsboard.existingSecretKey`: source `THINGSBOARD_URL` from an existing Secret instead of plain values
+- `demo.enabled`: turn off the built-in walkthrough path once you are ready to run your own SQL and telemetry sources
 
 Override the default ThingsBoard URL when either of these is true:
 
@@ -205,12 +206,12 @@ helm install coprocessor . \
 
 ## SQL packaging guidance
 
-The chart supports two SQL packaging modes:
+With `demo.enabled=true`, the chart automatically packages `files/demo/demo-signals.sql`. For non-demo use, the chart supports two SQL packaging modes:
 
 1. inline SQL in `sql.files`
 2. an existing ConfigMap via `sql.existingConfigMap`
 
-Inline SQL is convenient for demos and tightly managed releases:
+Inline SQL is convenient for tightly managed releases once you disable the built-in demo:
 
 ```yaml
 sql:
@@ -223,7 +224,7 @@ Use `sql.existingConfigMap` when SQL is generated elsewhere, shared across relea
 
 ### Simple and advanced SQL file input
 
-Use `sql.files` for the low-friction path. It keeps `--set-file` working and is the easiest way to package SQL with a release:
+Use `sql.files` for the low-friction professional path after `demo.enabled=false`. It keeps `--set-file` working and is the easiest way to package SQL with a release:
 
 ```bash
 helm install coprocessor . \
@@ -274,7 +275,7 @@ If you are installing next to an existing ThingsBoard instance, the usual first 
 
 ### Ingress
 
-Ingress traffic lands on the chart `Service` and is handled by Redpanda Connect.
+Ingress traffic lands on the chart `Service` and is handled by the chart's ingress runtime.
 
 - HTTP path: `connect.ingress.path`
 - allowed methods: `connect.ingress.allowedVerbs`
@@ -301,7 +302,7 @@ Important settings:
 - `connect.egress.retryPeriod`
 - `connect.egress.timeout`
 
-If egress is enabled, the chart renders an additional Connect pipeline that reads Redis streams and POSTs telemetry to ThingsBoard.
+If egress is enabled, the chart renders an additional egress pipeline that reads Redis streams and POSTs telemetry to ThingsBoard.
 
 #### Device token prerequisite
 
@@ -329,6 +330,7 @@ High-value fields to review before every install:
 | Placement | `nodeSelector`, `tolerations`, `affinity` |
 | Metadata | `commonLabels`, `commonAnnotations`, `podLabels`, `podAnnotations` |
 | Services | `service.*`, `headlessService.*` |
+| Demo walkthrough | `demo.enabled`, `demo.admin.*`, `demo.device.*`, `demo.publisher.*` |
 | SQL packaging | `sql.files`, `sql.selectedFiles`, `sql.existingConfigMap`, `sql.mountPath` |
 | ThingsBoard | `thingsboard.baseUrl`, `thingsboard.existingSecret`, `thingsboard.existingSecretKey` |
 | Connect ingress | `connect.ingress.*` |

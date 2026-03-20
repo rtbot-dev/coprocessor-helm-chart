@@ -1,0 +1,227 @@
+{{- if .Values.demo.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "coprocessor.demoConfigMapName" . }}
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  bootstrap.py: |
+    import json
+    import os
+    import socket
+    import sys
+    import time
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+
+    def log(message):
+        print("[demo-bootstrap] %s" % message, flush=True)
+
+
+    def redis_request(parts):
+        host = os.environ["REDIS_HOST"]
+        port = int(os.environ["REDIS_PORT"])
+        encoded = []
+        for part in parts:
+            value = str(part).encode("utf-8")
+            encoded.append(b"$%d\r\n%s\r\n" % (len(value), value))
+        payload = b"*%d\r\n" % len(parts) + b"".join(encoded)
+
+        with socket.create_connection((host, port), timeout=5) as conn:
+            conn.sendall(payload)
+            reader = conn.makefile("rb")
+            prefix = reader.read(1)
+            if prefix == b"+":
+                return reader.readline().decode("utf-8").strip()
+            if prefix == b":" :
+                return int(reader.readline().decode("utf-8").strip())
+            if prefix == b"$":
+                length = int(reader.readline().decode("utf-8").strip())
+                if length < 0:
+                    return ""
+                data = reader.read(length)
+                reader.read(2)
+                return data.decode("utf-8")
+            if prefix == b"-":
+                raise RuntimeError(reader.readline().decode("utf-8").strip())
+            raise RuntimeError("unsupported redis response: %r" % prefix)
+
+
+    def wait_for_redis():
+        retries = 30
+        for attempt in range(1, retries + 1):
+            try:
+                if redis_request(["PING"]) == "PONG":
+                    log("redis is ready")
+                    return
+            except OSError:
+                pass
+            log("waiting for redis (%d/%d)" % (attempt, retries))
+            time.sleep(2)
+        raise RuntimeError("redis did not become ready")
+
+
+    def redis_set_device_token(device_name, device_token):
+        redis_request(["HSET", "coprocessor:device_tokens", device_name, device_token])
+        log("stored demo device token mapping for %s" % device_name)
+
+
+    def tb_request(method, path, payload=None, bearer_token=None):
+        base_url = os.environ["DEMO_THINGSBOARD_URL"].rstrip("/")
+        url = base_url + path
+        data = None
+        headers = {"Content-Type": "application/json"}
+        if payload is not None:
+            data = json.dumps(payload).encode("utf-8")
+        if bearer_token:
+            headers["X-Authorization"] = "Bearer %s" % bearer_token
+        request = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                body = response.read().decode("utf-8")
+                if not body:
+                    return None
+                return json.loads(body)
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8")
+            if exc.code == 404:
+                return None
+            raise RuntimeError("thingsboard request failed %s %s: %s %s" % (method, path, exc.code, body))
+
+
+    def get_admin_credentials():
+        username = os.environ.get("DEMO_ADMIN_USERNAME", "").strip()
+        password = os.environ.get("DEMO_ADMIN_PASSWORD", "").strip()
+        return username, password
+
+
+    def ensure_demo_device_token():
+        username, password = get_admin_credentials()
+        device_name = os.environ["DEMO_DEVICE_NAME"]
+        device_type = os.environ["DEMO_DEVICE_TYPE"]
+
+        if username and password:
+            log("admin credentials provided, ensuring demo device exists")
+            login_response = tb_request(
+                "POST",
+                "/api/auth/login",
+                {"username": username, "password": password},
+            )
+            bearer_token = login_response["token"]
+            encoded_name = urllib.parse.quote(device_name, safe="")
+            device = tb_request("GET", "/api/tenant/devices?deviceName=%s" % encoded_name, bearer_token=bearer_token)
+            if device is None:
+                device = tb_request(
+                    "POST",
+                    "/api/device",
+                    {"name": device_name, "type": device_type},
+                    bearer_token=bearer_token,
+                )
+                log("created demo device %s" % device_name)
+            else:
+                log("reusing existing demo device %s" % device_name)
+
+            device_id = device["id"]["id"]
+            credentials = tb_request(
+                "GET",
+                "/api/device/%s/credentials" % device_id,
+                bearer_token=bearer_token,
+            )
+            credentials_id = credentials.get("credentialsId", "").strip()
+            if not credentials_id:
+                raise RuntimeError("device credentials were empty")
+            return credentials_id
+
+        device_token = os.environ.get("DEMO_DEVICE_TOKEN", "").strip()
+        if device_token:
+            log("using pre-provisioned demo device token")
+            return device_token
+
+        log("no admin credentials or device token supplied; leaving token map unset")
+        return ""
+
+
+    def main():
+        wait_for_redis()
+        device_token = ensure_demo_device_token()
+        if device_token:
+            redis_set_device_token(os.environ["DEMO_DEVICE_NAME"], device_token)
+        return 0
+
+
+    if __name__ == "__main__":
+        try:
+            sys.exit(main())
+        except Exception as exc:
+            log("error: %s" % exc)
+            sys.exit(1)
+  publisher.py: |
+    import json
+    import math
+    import os
+    import sys
+    import time
+    import urllib.error
+    import urllib.request
+
+
+    def log(message):
+        print("[demo-publisher] %s" % message, flush=True)
+
+
+    def build_payload(step):
+        base = float(os.environ["DEMO_BASE_TEMPERATURE"])
+        amplitude = float(os.environ["DEMO_TEMPERATURE_AMPLITUDE"])
+        step_degrees = float(os.environ["DEMO_TEMPERATURE_STEP_DEGREES"])
+        radians = math.radians(step * step_degrees)
+        temperature = base + amplitude * math.sin(radians)
+        return {
+            "temperature": round(temperature, 2),
+            "heartbeat": 1,
+        }
+
+
+    def publish(step):
+        payload = json.dumps(build_payload(step)).encode("utf-8")
+        timestamp_ms = str(int(time.time() * 1000))
+        request = urllib.request.Request(
+            os.environ["DEMO_INGEST_URL"],
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                os.environ["DEMO_DEVICE_HEADER"]: os.environ["DEMO_DEVICE_NAME"],
+                os.environ["DEMO_TIMESTAMP_HEADER"]: timestamp_ms,
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            response.read()
+            return response.status
+
+
+    def main():
+        interval_seconds = int(os.environ["DEMO_INTERVAL_SECONDS"])
+        step = 0
+        while True:
+            try:
+                status = publish(step)
+                log("published step %d with status %s" % (step, status))
+            except urllib.error.URLError as exc:
+                log("publish failed: %s" % exc)
+            step += 1
+            time.sleep(interval_seconds)
+
+
+    if __name__ == "__main__":
+        try:
+            main()
+        except KeyboardInterrupt:
+            sys.exit(0)
+{{- end }}

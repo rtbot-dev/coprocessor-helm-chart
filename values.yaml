@@ -19,6 +19,10 @@ images:
     repository: docker.redpanda.com/redpandadata/connect
     tag: "4.84.0"
     pullPolicy: IfNotPresent
+  demoTools:
+    repository: python
+    tag: "3.12-alpine"
+    pullPolicy: IfNotPresent
 
 serviceAccount:
   create: true
@@ -63,6 +67,39 @@ sql:
     hook: true
     annotations: {}
     labels: {}
+
+demo:
+  enabled: true
+  sqlFileName: 00-demo.sql
+  ingressStream: demo_sensors
+  egressStreams:
+    - rtbot:mv:demo_signals
+  device:
+    name: coprocessor-demo-device
+    type: coprocessor-demo
+    token: ""
+    existingSecret: ""
+    existingSecretKey: DEMO_DEVICE_TOKEN
+  admin:
+    username: ""
+    password: ""
+    existingSecret: ""
+    usernameKey: THINGSBOARD_USERNAME
+    passwordKey: THINGSBOARD_PASSWORD
+  bootstrapJob:
+    enabled: true
+    backoffLimit: 3
+    hook: true
+    annotations: {}
+    labels: {}
+    resources: {}
+  publisher:
+    enabled: true
+    intervalSeconds: 5
+    baseTemperature: 21
+    amplitude: 4
+    stepDegrees: 0.8
+    resources: {}
 
 connect:
   mountPath: /etc/coprocessor/connect

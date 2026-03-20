@@ -20,6 +20,9 @@
         },
         "connect": {
           "$ref": "#/definitions/image"
+        },
+        "demoTools": {
+          "$ref": "#/definitions/image"
         }
       }
     },
@@ -145,6 +148,115 @@
             },
             "labels": {
               "$ref": "#/definitions/stringMap"
+            }
+          }
+        }
+      }
+    },
+    "demo": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "sqlFileName": {
+          "type": "string"
+        },
+        "ingressStream": {
+          "type": "string"
+        },
+        "egressStreams": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "device": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "existingSecretKey": {
+              "type": "string"
+            }
+          }
+        },
+        "admin": {
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "usernameKey": {
+              "type": "string"
+            },
+            "passwordKey": {
+              "type": "string"
+            }
+          }
+        },
+        "bootstrapJob": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "backoffLimit": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "hook": {
+              "type": "boolean"
+            },
+            "annotations": {
+              "$ref": "#/definitions/stringMap"
+            },
+            "labels": {
+              "$ref": "#/definitions/stringMap"
+            },
+            "resources": {
+              "type": "object"
+            }
+          }
+        },
+        "publisher": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "intervalSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "baseTemperature": {
+              "type": "number"
+            },
+            "amplitude": {
+              "type": "number",
+              "minimum": 0
+            },
+            "stepDegrees": {
+              "type": "number"
+            },
+            "resources": {
+              "type": "object"
             }
           }
         }

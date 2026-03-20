@@ -55,6 +55,18 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- printf "%s-headless" (include "coprocessor.fullname" .) -}}
 {{- end -}}
 
+{{- define "coprocessor.demoConfigMapName" -}}
+{{- printf "%s-demo" (include "coprocessor.fullname" .) -}}
+{{- end -}}
+
+{{- define "coprocessor.demoPublisherName" -}}
+{{- printf "%s-demo-publisher" (include "coprocessor.fullname" .) -}}
+{{- end -}}
+
+{{- define "coprocessor.demoHasGeneratedSql" -}}
+{{- if and .Values.demo.enabled (not .Values.sql.existingConfigMap) -}}true{{- end -}}
+{{- end -}}
+
 {{- define "coprocessor.annotations" -}}
 {{- with .Values.commonAnnotations }}
 {{ toYaml . }}

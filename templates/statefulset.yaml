@@ -1,3 +1,5 @@
+{{- $demoEgressEnabled := and .Values.demo.enabled .Values.demo.publisher.enabled }}
+{{- $enableEgress := or .Values.connect.egress.enabled $demoEgressEnabled }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -85,7 +87,7 @@ spec:
           args:
             - streams
             - {{ printf "%s/ingress.yaml" .Values.connect.mountPath | quote }}
-            {{- if .Values.connect.egress.enabled }}
+            {{- if $enableEgress }}
             - {{ printf "%s/egress.yaml" .Values.connect.mountPath | quote }}
             {{- end }}
           env:
@@ -140,7 +142,7 @@ spec:
           emptyDir: {}
         {{- end }}
         - name: sql-config
-          {{- if or .Values.sql.existingConfigMap .Values.sql.files }}
+          {{- if or .Values.sql.existingConfigMap .Values.sql.files .Values.demo.enabled }}
           configMap:
             name: {{ include "coprocessor.sqlConfigMapName" . }}
           {{- else }}

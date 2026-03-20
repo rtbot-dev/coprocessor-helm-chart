@@ -1,0 +1,106 @@
+{{- if and .Values.demo.enabled .Values.demo.bootstrapJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "coprocessor.fullname" . }}-demo-bootstrap
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+    {{- with .Values.demo.bootstrapJob.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- $annotations := dict }}
+  {{- if .Values.demo.bootstrapJob.hook }}
+  {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
+  {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
+  {{- end }}
+  {{- range $k, $v := .Values.demo.bootstrapJob.annotations }}
+  {{- $_ := set $annotations $k $v }}
+  {{- end }}
+  {{- if $annotations }}
+  annotations:
+    {{- toYaml $annotations | nindent 4 }}
+  {{- end }}
+spec:
+  backoffLimit: {{ .Values.demo.bootstrapJob.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "coprocessor.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: demo-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "coprocessor.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: demo-bootstrap
+          image: "{{ .Values.images.demoTools.repository }}:{{ .Values.images.demoTools.tag }}"
+          imagePullPolicy: {{ .Values.images.demoTools.pullPolicy }}
+          command:
+            - python
+            - /demo/bootstrap.py
+          env:
+            - name: REDIS_HOST
+              value: {{ printf "%s-0.%s" (include "coprocessor.fullname" .) (include "coprocessor.headlessServiceName" .) | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.rtbotRedis.port | quote }}
+            - name: DEMO_THINGSBOARD_URL
+              {{- if .Values.thingsboard.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.thingsboard.existingSecret }}
+                  key: {{ .Values.thingsboard.existingSecretKey }}
+              {{- else if and .Values.secret.create (hasKey .Values.secret.stringData "THINGSBOARD_URL") }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "coprocessor.secretName" . }}
+                  key: THINGSBOARD_URL
+              {{- else }}
+              value: {{ .Values.thingsboard.baseUrl | quote }}
+              {{- end }}
+            - name: DEMO_DEVICE_NAME
+              value: {{ .Values.demo.device.name | quote }}
+            - name: DEMO_DEVICE_TYPE
+              value: {{ .Values.demo.device.type | quote }}
+            - name: DEMO_ADMIN_USERNAME
+              {{- if .Values.demo.admin.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.demo.admin.existingSecret }}
+                  key: {{ .Values.demo.admin.usernameKey }}
+              {{- else }}
+              value: {{ .Values.demo.admin.username | quote }}
+              {{- end }}
+            - name: DEMO_ADMIN_PASSWORD
+              {{- if .Values.demo.admin.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.demo.admin.existingSecret }}
+                  key: {{ .Values.demo.admin.passwordKey }}
+              {{- else }}
+              value: {{ .Values.demo.admin.password | quote }}
+              {{- end }}
+            - name: DEMO_DEVICE_TOKEN
+              {{- if .Values.demo.device.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.demo.device.existingSecret }}
+                  key: {{ .Values.demo.device.existingSecretKey }}
+              {{- else }}
+              value: {{ .Values.demo.device.token | quote }}
+              {{- end }}
+          volumeMounts:
+            - name: demo-scripts
+              mountPath: /demo
+              readOnly: true
+          {{- with .Values.demo.bootstrapJob.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: demo-scripts
+          configMap:
+            name: {{ include "coprocessor.demoConfigMapName" . }}
+{{- end }}

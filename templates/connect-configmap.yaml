@@ -1,3 +1,14 @@
+{{- $demoEgressEnabled := and .Values.demo.enabled .Values.demo.publisher.enabled }}
+{{- $enableEgress := or .Values.connect.egress.enabled $demoEgressEnabled }}
+{{- $egressStreams := list }}
+{{- if .Values.connect.egress.streams }}
+{{- $egressStreams = concat $egressStreams .Values.connect.egress.streams }}
+{{- else if .Values.connect.egress.stream }}
+{{- $egressStreams = append $egressStreams .Values.connect.egress.stream }}
+{{- end }}
+{{- if $demoEgressEnabled }}
+{{- $egressStreams = concat $egressStreams .Values.demo.egressStreams }}
+{{- end }}
 {{- if not .Values.connect.existingConfigMap }}
 apiVersion: v1
 kind: ConfigMap
@@ -116,18 +127,14 @@ data:
                 body_key: value
                 max_length: {{ .Values.connect.ingress.maxStreamLength }}
                 max_in_flight: {{ .Values.connect.ingress.maxInFlight }}
-  {{- if .Values.connect.egress.enabled }}
+  {{- if $enableEgress }}
   egress.yaml: |
     input:
       redis_streams:
         url: "${REDIS_URL:redis://localhost:6379}"
         streams:
-        {{- if .Values.connect.egress.streams }}
-        {{- range .Values.connect.egress.streams }}
+        {{- range $egressStreams }}
           - {{ . | quote }}
-        {{- end }}
-        {{- else }}
-          - {{ .Values.connect.egress.stream | quote }}
         {{- end }}
         body_key: value
         consumer_group: {{ .Values.connect.egress.consumerGroup }}

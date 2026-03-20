@@ -69,7 +69,7 @@ spec:
           {{- end }}
       volumes:
         - name: sql-config
-          {{- if or .Values.sql.existingConfigMap .Values.sql.files }}
+          {{- if or .Values.sql.existingConfigMap .Values.sql.files .Values.demo.enabled }}
           configMap:
             name: {{ include "coprocessor.sqlConfigMapName" . }}
           {{- else }}

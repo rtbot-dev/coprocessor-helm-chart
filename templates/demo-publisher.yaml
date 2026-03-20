@@ -1,0 +1,62 @@
+{{- if and .Values.demo.enabled .Values.demo.publisher.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "coprocessor.demoPublisherName" . }}
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+    app.kubernetes.io/component: demo-publisher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "coprocessor.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: demo-publisher
+  template:
+    metadata:
+      labels:
+        {{- include "coprocessor.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: demo-publisher
+    spec:
+      serviceAccountName: {{ include "coprocessor.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: demo-publisher
+          image: "{{ .Values.images.demoTools.repository }}:{{ .Values.images.demoTools.tag }}"
+          imagePullPolicy: {{ .Values.images.demoTools.pullPolicy }}
+          command:
+            - python
+            - /demo/publisher.py
+          env:
+            - name: DEMO_INGEST_URL
+              value: {{ printf "http://%s:%v%s" (include "coprocessor.fullname" .) .Values.service.port (replace "{stream_name}" .Values.demo.ingressStream .Values.connect.ingress.path) | quote }}
+            - name: DEMO_DEVICE_NAME
+              value: {{ .Values.demo.device.name | quote }}
+            - name: DEMO_DEVICE_HEADER
+              value: {{ .Values.connect.ingress.deviceIdHeader | quote }}
+            - name: DEMO_TIMESTAMP_HEADER
+              value: {{ .Values.connect.ingress.timestampHeader | quote }}
+            - name: DEMO_INTERVAL_SECONDS
+              value: {{ .Values.demo.publisher.intervalSeconds | quote }}
+            - name: DEMO_BASE_TEMPERATURE
+              value: {{ .Values.demo.publisher.baseTemperature | quote }}
+            - name: DEMO_TEMPERATURE_AMPLITUDE
+              value: {{ .Values.demo.publisher.amplitude | quote }}
+            - name: DEMO_TEMPERATURE_STEP_DEGREES
+              value: {{ .Values.demo.publisher.stepDegrees | quote }}
+          volumeMounts:
+            - name: demo-scripts
+              mountPath: /demo
+              readOnly: true
+          {{- with .Values.demo.publisher.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: demo-scripts
+          configMap:
+            name: {{ include "coprocessor.demoConfigMapName" . }}
+{{- end }}

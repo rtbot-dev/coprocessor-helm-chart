@@ -4,8 +4,9 @@ Release name: {{ .Release.Name }}
 Chart version: {{ .Chart.Version }}
 
 This release renders the coprocessor runtime with:
-- a StatefulSet containing rtbot-redis and Redpanda Connect
+- a StatefulSet containing rtbot-redis and the ingress/egress runtime
 - a SQL bootstrap Job that runs after install/upgrade by default
+- a demo bootstrap Job and demo publisher Deployment when `demo.enabled=true`
 - ConfigMaps for SQL and Connect configuration
 - a Service exposing the ingress endpoint
 - optional egress wiring back to ThingsBoard when enabled
@@ -16,6 +17,26 @@ Quick checks:
 - Otherwise, override `thingsboard.baseUrl` for cross-namespace or external deployments.
 - Confirm SQL files, image tags, persistence size, and resource requests match your deployment.
 - If using existing secrets, verify `thingsboard.existingSecret` or `*.extraEnvFrom` references resolve in the target namespace.
+
+Demo mode:
+{{- if .Values.demo.enabled }}
+- Enabled by default for a quick walkthrough.
+- Demo device name: `{{ .Values.demo.device.name }}`
+{{- if .Values.demo.admin.existingSecret }}
+- Device bootstrap mode: auto-create or reuse via admin credentials from Secret `{{ .Values.demo.admin.existingSecret }}`.
+{{- else if and .Values.demo.admin.username .Values.demo.admin.password }}
+- Device bootstrap mode: auto-create or reuse via provided admin credentials.
+{{- else if .Values.demo.device.existingSecret }}
+- Device bootstrap mode: pre-provisioned token from Secret `{{ .Values.demo.device.existingSecret }}`.
+{{- else if .Values.demo.device.token }}
+- Device bootstrap mode: pre-provisioned token from values.
+{{- else }}
+- Device bootstrap mode: no admin credentials or token supplied; demo telemetry still emits, but derived telemetry back to ThingsBoard needs one of those values.
+{{- end }}
+- Disable later with `--set demo.enabled=false` when you are ready to package your own SQL and telemetry sources.
+{{- else }}
+- Disabled.
+{{- end }}
 
 Ingress defaults:
 - Service: `{{ include "coprocessor.fullname" . }}` on port `{{ .Values.service.port }}`
@@ -55,6 +76,6 @@ Egress:
 {{- end }}
 
 Demo profile:
-- Use `-f values-demo.yaml` for a low-friction example configuration with inline SQL and no PVC requirement.
+- Use `-f values-demo.yaml` for a low-friction demo install with no PVC requirement.
 
 See the repo root `README.md` for production override examples and SQL packaging guidance.

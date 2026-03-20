@@ -1,4 +1,4 @@
-{{- if and (not .Values.sql.existingConfigMap) .Values.sql.files }}
+{{- if and (not .Values.sql.existingConfigMap) (or .Values.sql.files .Values.demo.enabled) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -10,6 +10,10 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
+  {{- if .Values.demo.enabled }}
+  {{ .Values.demo.sqlFileName }}: |
+{{ .Files.Get "files/demo/demo-signals.sql" | indent 4 }}
+  {{- end }}
   {{- range $name, $content := .Values.sql.files }}
   {{ $name }}: |
 {{ tpl $content $ | indent 4 }}
