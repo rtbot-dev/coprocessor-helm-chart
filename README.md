@@ -20,8 +20,17 @@ If you already have ThingsBoard running in the same namespace as a Service named
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
-  --set-file sql.files.01-demo\.sql=./pipelines/01-demo.sql
+  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (device_id DOUBLE PRECISION, temperature DOUBLE PRECISION); CREATE MATERIALIZED VIEW latest_temperature AS SELECT device_id, MAX(temperature) AS temperature FROM sensors GROUP BY device_id;'
 ```
+
+What this command is doing:
+
+- installing the `coprocessor` chart next to your existing ThingsBoard service
+- creating one SQL file inside the release named `01-demo.sql`
+- filling that file with the RtBot SQL text you passed inline
+- registering that SQL during the bootstrap job so the pipeline is ready to process telemetry
+
+If you would rather keep the SQL in a local file instead of writing it inline, see [Simple and advanced SQL file input](#simple-and-advanced-sql-file-input).
 
 ## How to tell it worked
 
@@ -86,7 +95,7 @@ Install directly from GHCR:
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
-  --set-file sql.files.01-demo\.sql=./pipelines/01-demo.sql
+  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (device_id DOUBLE PRECISION, temperature DOUBLE PRECISION); CREATE MATERIALIZED VIEW latest_temperature AS SELECT device_id, MAX(temperature) AS temperature FROM sensors GROUP BY device_id;'
 ```
 
 ## Minimum install
@@ -97,7 +106,7 @@ If that matches your cluster, the smallest install from the repository root is:
 
 ```bash
 helm install coprocessor . \
-  --set-file sql.files.01-demo\.sql=./pipelines/01-demo.sql
+  --set-string sql.files.01-demo\.sql='CREATE STREAM sensors (device_id DOUBLE PRECISION, temperature DOUBLE PRECISION); CREATE MATERIALIZED VIEW latest_temperature AS SELECT device_id, MAX(temperature) AS temperature FROM sensors GROUP BY device_id;'
 ```
 
 Before installing, confirm the service name resolves the way the chart expects:
@@ -197,6 +206,8 @@ helm install coprocessor . \
   --set-file sql.files.01-bootstrap\.sql=./sql/01-bootstrap.sql \
   --set-file sql.files.02-views\.sql=./sql/02-views.sql
 ```
+
+In that example, each `--set-file sql.files.<name>.sql=...` argument creates one SQL file inside the release and fills it with the contents of your local file.
 
 ```yaml
 sql:
