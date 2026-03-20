@@ -2,6 +2,8 @@
 
 The `coprocessor` chart installs the runtime needed to accept HTTP ingestion traffic, compile and run RTBot SQL programs, and optionally push materialized-view results back to ThingsBoard.
 
+This repository is the public release surface for RTBot coprocessor artifacts. It carries the public Helm chart and the GitHub Actions workflows that publish the chart to GHCR and mirror the public `rtbot-redis` image to `ghcr.io/rtbot-dev/rtbot-redis` without rebuilding it in this repo.
+
 ## What the chart installs
 
 - one `StatefulSet`
