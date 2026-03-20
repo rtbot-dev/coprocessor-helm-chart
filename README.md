@@ -29,14 +29,14 @@ Pull a released chart locally:
 
 ```bash
 helm pull oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.1.0
+  --version 0.1.1
 ```
 
 Install directly from GHCR:
 
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.1.0 \
+  --version 0.1.1 \
   --set-file sql.files.01-demo\.sql=./pipelines/01-demo.sql
 ```
 

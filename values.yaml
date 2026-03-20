@@ -9,7 +9,7 @@ imagePullSecrets: []
 images:
   rtbotRedis:
     repository: ghcr.io/rtbot-dev/rtbot-redis
-    tag: "0.1.0"
+    tag: "0.1.1"
     pullPolicy: IfNotPresent
   sqlRunner:
     repository: redis
