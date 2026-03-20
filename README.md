@@ -1,14 +1,61 @@
 # Coprocessor Helm Chart
 
-The `coprocessor` chart installs the runtime needed to accept HTTP ingestion traffic, compile and run RTBot SQL programs, and optionally push materialized-view results back to ThingsBoard.
+The `coprocessor` chart lets ThingsBoard users run RtBot SQL on live device telemetry without hand-wiring the runtime stack. Install it beside an existing ThingsBoard deployment, provide one or more SQL files, and the chart stands up the ingestion, execution, and optional egress path needed to turn raw telemetry into derived analytics.
 
-This repository is the public release surface for RTBot coprocessor artifacts. It carries the public Helm chart and the GitHub Actions workflows that publish the chart to GHCR and mirror the public `rtbot-redis` image to `ghcr.io/rtbot-dev/rtbot-redis` without rebuilding it in this repo.
+This repository is the public release surface for the coprocessor Helm chart and the public `rtbot-redis` image.
+
+## Why install it
+
+Use this chart when you want to:
+
+- run RtBot SQL against ThingsBoard telemetry in Kubernetes
+- register SQL files as part of the deployment instead of managing ad-hoc runtime commands
+- publish materialized-view results back into ThingsBoard
+- start with a simple same-namespace install and grow into production overrides later
+
+## Quick start
+
+If you already have ThingsBoard running in the same namespace as a Service named `thingsboard`, the fastest path is:
+
+```bash
+helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
+  --version 0.1.1 \
+  --set-file sql.files.01-demo\.sql=./pipelines/01-demo.sql
+```
+
+## How to tell it worked
+
+Run:
+
+```bash
+kubectl get pods,jobs
+```
+
+You should see:
+
+- a `coprocessor` StatefulSet pod
+- a SQL bootstrap Job
+
+If those do not appear or do not become ready, continue with `tests/README.md` and the troubleshooting guidance in this repo.
+
+## Table of contents
+
+- [What the chart installs](#what-the-chart-installs)
+- [Prerequisites](#prerequisites)
+- [OCI distribution](#oci-distribution)
+- [Minimum install](#minimum-install)
+- [Demo install path](#demo-install-path)
+- [Install smoke testing](#install-smoke-testing)
+- [Production configuration guidance](#production-configuration-guidance)
+- [SQL packaging guidance](#sql-packaging-guidance)
+- [Ingress and egress guidance](#ingress-and-egress-guidance)
+- [Values guide](#values-guide)
 
 ## What the chart installs
 
 - one `StatefulSet`
 - one SQL bootstrap `Job` that waits for the first `rtbot-redis` pod and loads packaged SQL into it
-- one `rtbot-redis` container for RTBot execution and state
+- one `rtbot-redis` container for RtBot execution and state
 - one Redpanda Connect container for ingress and optional egress wiring
 - one headless `Service` for the StatefulSet and one client-facing ingress `Service`
 - generated `ConfigMap` objects for SQL and Connect config unless you point at existing ones
@@ -21,11 +68,11 @@ This repository is the public release surface for RTBot coprocessor artifacts. I
 - an existing ThingsBoard deployment that is reachable from this namespace
 - a StorageClass if `persistence.enabled=true`
 - an `rtbot-redis` image pull path that is valid for your environment; the chart default is `ghcr.io/rtbot-dev/rtbot-redis`
-- RTBot SQL files to load, either inline or in an existing ConfigMap
+- RtBot SQL files to load, either inline or in an existing ConfigMap
 
 ## OCI distribution
 
-The chart can be published as an OCI artifact to GHCR.
+The chart is published as an OCI artifact to GHCR.
 
 Pull a released chart locally:
 
@@ -42,17 +89,11 @@ helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --set-file sql.files.01-demo\.sql=./pipelines/01-demo.sql
 ```
 
-If the package is private, authenticate first:
-
-```bash
-helm registry login ghcr.io -u <github-username>
-```
-
 ## Minimum install
 
-The base chart now assumes the common in-cluster setup: you already have ThingsBoard running in the same namespace, exposed as `http://thingsboard:8080`.
+The base chart assumes the common in-cluster setup: you already have ThingsBoard running in the same namespace, exposed as `http://thingsboard:8080`.
 
-If that matches your cluster, the smallest install is just a release plus at least one SQL file:
+If that matches your cluster, the smallest install from the repository root is:
 
 ```bash
 helm install coprocessor . \
@@ -65,13 +106,13 @@ Before installing, confirm the service name resolves the way the chart expects:
 kubectl get svc thingsboard
 ```
 
-If your ThingsBoard service has a different name, lives in another namespace, or is outside the cluster, keep reading and override `thingsboard.baseUrl` for that environment.
+If your ThingsBoard service has a different name, lives in another namespace, or is outside the cluster, override `thingsboard.baseUrl` for that environment.
 
 That install renders:
 
 - the default ingress listener at `/ingest/{stream_name}`
 - the default ThingsBoard target at `http://thingsboard:8080`
-- persistent RTBot state in an `8Gi` PVC
+- persistent RtBot state in an `8Gi` PVC
 - a post-install/post-upgrade SQL bootstrap Job
 - no generated secret unless `secret.create=true`
 - no egress pipeline unless `connect.egress.enabled=true`
@@ -111,7 +152,7 @@ For production, treat these as the main override points:
 - `connect.extraEnvFrom`, `sqlRunner.extraEnvFrom`, `rtbotRedis.extraEnvFrom`: reference existing Secrets or ConfigMaps for environment-driven settings
 - `thingsboard.existingSecret` and `thingsboard.existingSecretKey`: source `THINGSBOARD_URL` from an existing Secret instead of plain values
 
-For production, override the default ThingsBoard URL when either of these is true:
+Override the default ThingsBoard URL when either of these is true:
 
 - ThingsBoard lives in a different namespace, for example `http://thingsboard.other-namespace.svc.cluster.local:8080`
 - ThingsBoard is reached through an external URL such as `https://thingsboard.example.com`
@@ -133,8 +174,8 @@ helm install coprocessor . \
 
 The chart supports two SQL packaging modes:
 
-1. Inline SQL in `sql.files`.
-2. An existing ConfigMap via `sql.existingConfigMap`.
+1. inline SQL in `sql.files`
+2. an existing ConfigMap via `sql.existingConfigMap`
 
 Inline SQL is convenient for demos and tightly managed releases:
 
@@ -237,7 +278,7 @@ The egress pipeline resolves the ThingsBoard device token this way:
 
 That means you must choose one of these operating models:
 
-- name the ThingsBoard device with its access token, or
+- name the ThingsBoard device with its access token
 - populate the Redis hash `coprocessor:device_tokens` with `device_name -> device_token`
 
 The chart does not currently manage `coprocessor:device_tokens` for you.
@@ -261,4 +302,4 @@ High-value fields to review before every install:
 | Persistence | `persistence.enabled`, `persistence.size`, `persistence.storageClassName`, `persistence.annotations` |
 | Resources | `rtbotRedis.resources`, `connect.resources`, `sqlRunner.resources` |
 
-If `values.schema.json` is present in your checkout, `helm lint` will also validate the core value structure.
+If `values.schema.json` is present in your checkout, `helm lint` also validates the core value structure.

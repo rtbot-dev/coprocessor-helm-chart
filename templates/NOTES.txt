@@ -30,7 +30,7 @@ Persistence:
 - StorageClass: cluster default
 {{- end }}
 {{- else }}
-- Disabled; using `emptyDir` for RTBot state
+- Disabled; using `emptyDir` for RtBot state
 {{- end }}
 
 ThingsBoard:
