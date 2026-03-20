@@ -1,0 +1,17 @@
+{{- if and (not .Values.sql.existingConfigMap) .Values.sql.files }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "coprocessor.sqlConfigMapName" . }}
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  {{- range $name, $content := .Values.sql.files }}
+  {{ $name }}: |
+{{ tpl $content $ | indent 4 }}
+  {{- end }}
+{{- end }}

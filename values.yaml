@@ -1,0 +1,126 @@
+nameOverride: ""
+fullnameOverride: ""
+
+commonLabels: {}
+commonAnnotations: {}
+
+imagePullSecrets: []
+
+images:
+  rtbotRedis:
+    repository: ghcr.io/rtbot-dev/rtbot-redis
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  sqlRunner:
+    repository: redis
+    tag: "7.2"
+    pullPolicy: IfNotPresent
+  connect:
+    repository: docker.redpanda.com/redpandadata/connect
+    tag: "4.84.0"
+    pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  labels: {}
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+
+statefulset:
+  replicas: 1
+  labels: {}
+  annotations: {}
+  terminationGracePeriodSeconds: 30
+
+headlessService:
+  labels: {}
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 4195
+  nodePort: null
+  labels: {}
+  annotations: {}
+
+thingsboard:
+  baseUrl: http://thingsboard:8080
+  existingSecret: ""
+  existingSecretKey: THINGSBOARD_URL
+
+sql:
+  mountPath: /sql
+  existingConfigMap: ""
+  files: {}
+  bootstrapJob:
+    enabled: true
+    backoffLimit: 3
+    hook: true
+    annotations: {}
+    labels: {}
+
+connect:
+  mountPath: /etc/coprocessor/connect
+  port: 4195
+  existingConfigMap: ""
+  extraEnvFrom: []
+  ingress:
+    path: /ingest/{stream_name}
+    allowedVerbs:
+      - POST
+    timeout: 5s
+    deviceIdHeader: X-Device-Id
+    timestampHeader: X-Timestamp-Ms
+    successStatus: "200"
+    errorStatus: "400"
+    maxStreamLength: 10000
+    maxInFlight: 64
+  egress:
+    enabled: false
+    stream: ""
+    streams: []
+    consumerGroup: coprocessor-egress-group
+    clientId: coprocessor-connect-egress
+    startFromOldest: true
+    commitPeriod: 1s
+    retries: 3
+    retryPeriod: 1s
+    timeout: 5s
+  extraEnv: []
+  resources: {}
+
+rtbotRedis:
+  port: 6379
+  args:
+    - --protected-mode
+    - "no"
+  extraEnvFrom: []
+  resources: {}
+
+sqlRunner:
+  extraEnvFrom: []
+  extraEnv: []
+  resources: {}
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 8Gi
+  storageClassName: ""
+  annotations: {}
+  labels: {}
+
+secret:
+  create: false
+  labels: {}
+  annotations: {}
+  stringData: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

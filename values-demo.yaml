@@ -1,0 +1,25 @@
+## Minimal-friction demo profile:
+## - avoids requiring a default StorageClass
+## - keeps the same-namespace ThingsBoard default
+## - ships SQL inline so no extra ConfigMap is needed
+
+persistence:
+  enabled: false
+
+sql:
+  files:
+    01-temperature.sql: |
+      CREATE STREAM sensors (device_id DOUBLE PRECISION, temperature DOUBLE PRECISION);
+
+      CREATE MATERIALIZED VIEW temp_avg AS
+        SELECT device_id,
+               MOVING_AVERAGE(temperature, 5) AS avg_temp
+        FROM sensors
+        GROUP BY device_id;
+
+connect:
+  ingress:
+    path: /ingest/{stream_name}
+  egress:
+    enabled: true
+    stream: rtbot:mv:temp_avg

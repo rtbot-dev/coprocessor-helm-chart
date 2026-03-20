@@ -1,0 +1,76 @@
+{{- if .Values.sql.bootstrapJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "coprocessor.fullname" . }}-sql-bootstrap
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+    {{- with .Values.sql.bootstrapJob.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- $annotations := dict }}
+  {{- if .Values.sql.bootstrapJob.hook }}
+  {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
+  {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
+  {{- end }}
+  {{- range $k, $v := .Values.sql.bootstrapJob.annotations }}
+  {{- $_ := set $annotations $k $v }}
+  {{- end }}
+  {{- if $annotations }}
+  annotations:
+    {{- toYaml $annotations | nindent 4 }}
+  {{- end }}
+spec:
+  backoffLimit: {{ .Values.sql.bootstrapJob.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "coprocessor.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "coprocessor.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: sql-bootstrap
+          image: "{{ .Values.images.sqlRunner.repository }}:{{ .Values.images.sqlRunner.tag }}"
+          imagePullPolicy: {{ .Values.images.sqlRunner.pullPolicy }}
+          command:
+            - /bin/bash
+            - -ec
+          args:
+            - |
+{{ .Files.Get "files/sql-runner/run.sh" | indent 14 }}
+          env:
+            - name: REDIS_HOST
+              value: {{ printf "%s-0.%s" (include "coprocessor.fullname" .) (include "coprocessor.headlessServiceName" .) | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.rtbotRedis.port | quote }}
+            - name: SQL_DIR
+              value: {{ .Values.sql.mountPath | quote }}
+            {{- with .Values.sqlRunner.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.sqlRunner.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: sql-config
+              mountPath: {{ .Values.sql.mountPath }}
+              readOnly: true
+          {{- with .Values.sqlRunner.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: sql-config
+          {{- if or .Values.sql.existingConfigMap .Values.sql.files }}
+          configMap:
+            name: {{ include "coprocessor.sqlConfigMapName" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

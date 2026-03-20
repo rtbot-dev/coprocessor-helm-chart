@@ -1,0 +1,5 @@
+apiVersion: v2
+name: coprocessor
+description: Helm chart for deploying the coprocessor integration.
+type: application
+version: 0.1.0

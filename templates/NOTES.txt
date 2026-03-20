@@ -1,0 +1,60 @@
+Thank you for installing the coprocessor chart.
+
+Release name: {{ .Release.Name }}
+Chart version: {{ .Chart.Version }}
+
+This release renders the coprocessor runtime with:
+- a StatefulSet containing rtbot-redis and Redpanda Connect
+- a SQL bootstrap Job that runs after install/upgrade by default
+- ConfigMaps for SQL and Connect configuration
+- a Service exposing the ingress endpoint
+- optional egress wiring back to ThingsBoard when enabled
+
+Quick checks:
+- Review the rendered ingress Service and Connect configuration.
+- If ThingsBoard already runs in this namespace as `thingsboard`, the default URL should work without changes.
+- Otherwise, override `thingsboard.baseUrl` for cross-namespace or external deployments.
+- Confirm SQL files, image tags, persistence size, and resource requests match your deployment.
+- If using existing secrets, verify `thingsboard.existingSecret` or `*.extraEnvFrom` references resolve in the target namespace.
+
+Ingress defaults:
+- Service: `{{ include "coprocessor.fullname" . }}` on port `{{ .Values.service.port }}`
+- Path: `{{ .Values.connect.ingress.path }}`
+
+Persistence:
+{{- if .Values.persistence.enabled }}
+- Enabled with requested size `{{ .Values.persistence.size }}`
+{{- if .Values.persistence.storageClassName }}
+- StorageClass: `{{ .Values.persistence.storageClassName }}`
+{{- else }}
+- StorageClass: cluster default
+{{- end }}
+{{- else }}
+- Disabled; using `emptyDir` for RTBot state
+{{- end }}
+
+ThingsBoard:
+{{- if .Values.thingsboard.existingSecret }}
+- URL sourced from Secret `{{ .Values.thingsboard.existingSecret }}` key `{{ .Values.thingsboard.existingSecretKey }}`
+{{- else }}
+- URL: `{{ .Values.thingsboard.baseUrl }}`
+{{- end }}
+
+Egress:
+{{- if .Values.connect.egress.enabled }}
+- Enabled for stream targets:
+{{- if .Values.connect.egress.streams }}
+{{- range .Values.connect.egress.streams }}
+  - `{{ . }}`
+{{- end }}
+{{- else }}
+  - `{{ .Values.connect.egress.stream }}`
+{{- end }}
+{{- else }}
+- Disabled
+{{- end }}
+
+Demo profile:
+- Use `-f charts/coprocessor/values-demo.yaml` for a low-friction example configuration with inline SQL and no PVC requirement.
+
+See `charts/coprocessor/README.md` for production override examples and SQL packaging guidance.

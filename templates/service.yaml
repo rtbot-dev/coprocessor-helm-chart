@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "coprocessor.headlessServiceName" . }}
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+    {{- with .Values.headlessService.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if or .Values.commonAnnotations .Values.headlessService.annotations }}
+  annotations:
+    {{- include "coprocessor.annotations" . | nindent 4 }}
+    {{- with .Values.headlessService.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "coprocessor.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: ingress
+      port: {{ .Values.service.port }}
+      targetPort: ingress
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "coprocessor.fullname" . }}
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+    {{- with .Values.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if or .Values.commonAnnotations .Values.service.annotations }}
+  annotations:
+    {{- include "coprocessor.annotations" . | nindent 4 }}
+    {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "coprocessor.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: ingress
+      port: {{ .Values.service.port }}
+      targetPort: ingress
+      protocol: TCP
+{{- if .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+{{- end }}

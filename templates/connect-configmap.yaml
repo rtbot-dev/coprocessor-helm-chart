@@ -1,0 +1,221 @@
+{{- if not .Values.connect.existingConfigMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "coprocessor.connectConfigMapName" . }}
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  ingress.yaml: |
+    input:
+      http_server:
+        path: {{ .Values.connect.ingress.path }}
+        allowed_verbs:
+        {{- range .Values.connect.ingress.allowedVerbs }}
+          - {{ . | quote }}
+        {{- end }}
+        timeout: {{ .Values.connect.ingress.timeout }}
+        sync_response:
+          status: '${! if errored() { {{ .Values.connect.ingress.errorStatus | quote }} } else { {{ .Values.connect.ingress.successStatus | quote }} } }'
+          headers:
+            Content-Type: application/json
+
+    pipeline:
+      processors:
+        - mapping: |
+            let device_id_raw = metadata({{ .Values.connect.ingress.deviceIdHeader | quote }}).or("")
+            root = if $device_id_raw == "" {
+              throw("missing required header: {{ .Values.connect.ingress.deviceIdHeader }}")
+            } else {
+              this
+            }
+
+        - branch:
+            request_map: |
+              root = metadata({{ .Values.connect.ingress.deviceIdHeader | quote }})
+            processors:
+              - redis:
+                  url: "${REDIS_URL:redis://localhost:6379}"
+                  command: hsetnx
+                  args_mapping: |
+                    let device_name = content().string()
+                    let device_hash = $device_name.hash("fnv32")
+                    root = ["coprocessor:device_map", $device_hash, $device_name]
+            result_map: 'root = deleted()'
+
+        - branch:
+            request_map: |
+              root = ""
+            processors:
+              - redis:
+                  url: "${REDIS_URL:redis://localhost:6379}"
+                  command: get
+                  retries: 0
+                  args_mapping: |
+                    root = ["rtbot:sql:stream:" + metadata("stream_name")]
+            result_map: |
+              meta schema_str = if errored() { "" } else { content().string() }
+
+        - catch:
+            - mapping: 'root = this'
+
+        - mapping: |
+            let stream_name = metadata("stream_name")
+            let device_name = metadata({{ .Values.connect.ingress.deviceIdHeader | quote }})
+            let device_hash = $device_name.hash("fnv32")
+            let device_hash_int = $device_hash.int64()
+            let ts = metadata({{ .Values.connect.ingress.timestampHeader | quote }}).or(timestamp_unix_milli().string()).int64()
+            let schema_str = metadata("schema_str").or("")
+
+            let input_with_device = this.merge({"device_id": $device_hash_int})
+
+            let parsed_1 = if $schema_str != "" && $schema_str != "null" { $schema_str.parse_json() } else { null }
+            let schema = if $parsed_1 != null {
+              if $parsed_1.type() == "string" { $parsed_1.parse_json() } else { $parsed_1 }
+            } else { null }
+
+            let vector_value = if $schema != null && $schema.columns != null {
+              $schema.columns.sort_by(c -> c.index).map_each(c -> $input_with_device.get(c.name).or(null))
+            } else { null }
+
+            let flat_payload = this.map_each(item -> {
+              "messages": [{"time": $ts, "value": item.value}]
+            }).merge({
+              "device_id": {
+                "messages": [{"time": $ts, "value": $device_hash_int}]
+              }
+            })
+
+            let payload = if $vector_value != null {
+              {"i1": {"messages": [{"time": $ts, "value": $vector_value}]}}
+            } else {
+              $flat_payload
+            }
+
+            root = {
+              "blobId": uuid_v4(),
+              "kernelId": $stream_name,
+              "payload": $payload,
+              "labels": {}
+            }
+
+    output:
+      switch:
+        cases:
+          - check: errored()
+            output:
+              sync_response: {}
+          - output:
+              redis_streams:
+                url: "${REDIS_URL:redis://localhost:6379}"
+                stream: '${! metadata("stream_name") }'
+                body_key: value
+                max_length: {{ .Values.connect.ingress.maxStreamLength }}
+                max_in_flight: {{ .Values.connect.ingress.maxInFlight }}
+  {{- if .Values.connect.egress.enabled }}
+  egress.yaml: |
+    input:
+      redis_streams:
+        url: "${REDIS_URL:redis://localhost:6379}"
+        streams:
+        {{- if .Values.connect.egress.streams }}
+        {{- range .Values.connect.egress.streams }}
+          - {{ . | quote }}
+        {{- end }}
+        {{- else }}
+          - {{ .Values.connect.egress.stream | quote }}
+        {{- end }}
+        body_key: value
+        consumer_group: {{ .Values.connect.egress.consumerGroup }}
+        client_id: {{ .Values.connect.egress.clientId }}
+        start_from_oldest: {{ .Values.connect.egress.startFromOldest }}
+        commit_period: {{ .Values.connect.egress.commitPeriod }}
+
+    pipeline:
+      processors:
+        - branch:
+            request_map: |
+              let view_name = this.blobId.split(":").index(-1).trim_prefix("sql_mv_")
+              root = ""
+              meta extracted_view_name = $view_name
+            processors:
+              - redis:
+                  url: "${REDIS_URL:redis://localhost:6379}"
+                  command: get
+                  args_mapping: |
+                    root = ["rtbot:sql:view:" + metadata("extracted_view_name")]
+              - catch:
+                  - mapping: 'root = ""'
+            result_map: |
+              meta view_schema = content().string()
+
+        - mapping: |
+            let schema_str = metadata("view_schema").or("{}")
+            let parsed_1 = if $schema_str == "" { "{}" } else { $schema_str.parse_json() }
+            let schema = if $parsed_1.type() == "string" { $parsed_1.parse_json() } else { $parsed_1 }
+            let field_map = $schema.field_map.or({"device_id": 0})
+
+            let output_port = this.payload.key_values().index(0).value
+            let message = $output_port.messages.index(0)
+            let vector_arr = $message.value
+            let timestamp_ms = $message.time.ts_parse("2006-01-02T15:04:05.999999999Z07:00").ts_unix_milli()
+
+            meta device_hash = $vector_arr.index($field_map.device_id).number().int64().string()
+
+            let json_str = $field_map.key_values().filter(kv -> kv.key != "device_id").map_each(kv -> "\"" + kv.key + "\":" + $vector_arr.index(kv.value).string()).join(",")
+            let filtered_values = ("{" + $json_str + "}").parse_json()
+
+            root = {
+              "ts": $timestamp_ms,
+              "values": $filtered_values
+            }
+
+        - branch:
+            request_map: |
+              root = metadata("device_hash")
+            processors:
+              - redis:
+                  url: "${REDIS_URL:redis://localhost:6379}"
+                  command: hget
+                  retries: 0
+                  args_mapping: |
+                    root = ["coprocessor:device_map", content().string()]
+              - catch:
+                  - mapping: 'root = ""'
+            result_map: |
+              let res = content().string().trim_prefix("\"").trim_suffix("\"")
+              meta device_name = if $res == "" { metadata("device_hash") } else { $res }
+
+        - branch:
+            request_map: |
+              root = metadata("device_name")
+            processors:
+              - redis:
+                  url: "${REDIS_URL:redis://localhost:6379}"
+                  command: hget
+                  retries: 0
+                  args_mapping: |
+                    root = ["coprocessor:device_tokens", content().string()]
+              - catch:
+                  - mapping: 'root = ""'
+            result_map: |
+              let res = content().string().trim_prefix("\"").trim_suffix("\"")
+              meta device_token = if $res == "" { metadata("device_name") } else { $res }
+
+    output:
+      http_client:
+        url: "${THINGSBOARD_URL:http://localhost:8080}/api/v1/${! metadata(\"device_token\") }/telemetry"
+        verb: POST
+        headers:
+          Content-Type: application/json
+        timeout: {{ .Values.connect.egress.timeout }}
+        retries: {{ .Values.connect.egress.retries }}
+        retry_period: {{ .Values.connect.egress.retryPeriod }}
+        successful_on:
+          - 200
+  {{- end }}
+{{- end }}

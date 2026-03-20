@@ -1,0 +1,190 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "coprocessor.fullname" . }}
+  labels:
+    {{- include "coprocessor.labels" . | nindent 4 }}
+    {{- with .Values.statefulset.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if or .Values.commonAnnotations .Values.statefulset.annotations }}
+  annotations:
+    {{- include "coprocessor.annotations" . | nindent 4 }}
+    {{- with .Values.statefulset.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+spec:
+  serviceName: {{ include "coprocessor.headlessServiceName" . }}
+  replicas: {{ .Values.statefulset.replicas }}
+  selector:
+    matchLabels:
+      {{- include "coprocessor.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "coprocessor.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "coprocessor.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.statefulset.terminationGracePeriodSeconds }}
+      containers:
+        - name: rtbot-redis
+          image: "{{ .Values.images.rtbotRedis.repository }}:{{ .Values.images.rtbotRedis.tag }}"
+          imagePullPolicy: {{ .Values.images.rtbotRedis.pullPolicy }}
+          args:
+            {{- range .Values.rtbotRedis.args }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- with .Values.rtbotRedis.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: redis
+              containerPort: {{ .Values.rtbotRedis.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          {{- with .Values.rtbotRedis.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        - name: connect
+          image: "{{ .Values.images.connect.repository }}:{{ .Values.images.connect.tag }}"
+          imagePullPolicy: {{ .Values.images.connect.pullPolicy }}
+          args:
+            - streams
+            - {{ printf "%s/ingress.yaml" .Values.connect.mountPath | quote }}
+            {{- if .Values.connect.egress.enabled }}
+            - {{ printf "%s/egress.yaml" .Values.connect.mountPath | quote }}
+            {{- end }}
+          env:
+            - name: REDIS_URL
+              value: "redis://127.0.0.1:{{ .Values.rtbotRedis.port }}"
+            - name: THINGSBOARD_URL
+              {{- if .Values.thingsboard.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.thingsboard.existingSecret }}
+                  key: {{ .Values.thingsboard.existingSecretKey }}
+              {{- else if and .Values.secret.create (hasKey .Values.secret.stringData "THINGSBOARD_URL") }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "coprocessor.secretName" . }}
+                  key: THINGSBOARD_URL
+              {{- else }}
+              value: {{ .Values.thingsboard.baseUrl | quote }}
+              {{- end }}
+            {{- with .Values.connect.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.connect.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: ingress
+              containerPort: {{ .Values.connect.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: connect-config
+              mountPath: {{ .Values.connect.mountPath }}
+              readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: ingress
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: ingress
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          {{- with .Values.connect.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        {{- if not .Values.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+        - name: sql-config
+          {{- if or .Values.sql.existingConfigMap .Values.sql.files }}
+          configMap:
+            name: {{ include "coprocessor.sqlConfigMapName" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: connect-config
+          configMap:
+            name: {{ include "coprocessor.connectConfigMapName" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "coprocessor.labels" . | nindent 10 }}
+          {{- with .Values.persistence.labels }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        {{- if .Values.persistence.annotations }}
+        annotations:
+          {{- toYaml .Values.persistence.annotations | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- range .Values.persistence.accessModes }}
+          - {{ . | quote }}
+          {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClassName }}
+        storageClassName: {{ .Values.persistence.storageClassName }}
+        {{- end }}
+  {{- else }}
+  volumeClaimTemplates: []
+  {{- end }}
