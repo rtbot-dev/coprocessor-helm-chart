@@ -121,6 +121,12 @@
             "type": "string"
           }
         },
+        "selectedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "bootstrapJob": {
           "type": "object",
           "properties": {

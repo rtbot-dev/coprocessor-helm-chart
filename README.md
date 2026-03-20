@@ -147,7 +147,46 @@ sql:
 
 Use `sql.existingConfigMap` when SQL is generated elsewhere, shared across releases, or too large to keep inside Helm values.
 
-File names should end in `.sql`. The bootstrap Job runs each file in lexical order after the StatefulSet is created and the first Redis pod is reachable.
+### Simple and advanced SQL file input
+
+Use `sql.files` for the low-friction path. It keeps `--set-file` working and is the easiest way to package SQL with a release:
+
+```bash
+helm install coprocessor . \
+  --set-file sql.files.01-bootstrap\.sql=./sql/01-bootstrap.sql \
+  --set-file sql.files.02-views\.sql=./sql/02-views.sql
+```
+
+```yaml
+sql:
+  files:
+    01-bootstrap.sql: |
+      CREATE STREAM sensors (device_id DOUBLE PRECISION, temperature DOUBLE PRECISION);
+    02-views.sql: |
+      CREATE MATERIALIZED VIEW latest_temperature AS
+      SELECT device_id, MAX(temperature) AS temperature
+      FROM sensors
+      GROUP BY device_id;
+```
+
+Use `sql.selectedFiles` for the advanced path when the mounted SQL directory contains more files than you want to execute, or when you need a custom execution order. This works with either `sql.files` or `sql.existingConfigMap`, but it is especially useful with shared pre-created ConfigMaps:
+
+```yaml
+sql:
+  existingConfigMap: shared-coprocessor-sql
+  selectedFiles:
+    - 20-schema.sql
+    - 40-backfill.sql
+    - 99-views.sql
+```
+
+Execution rules:
+
+- if `sql.selectedFiles` is empty, the bootstrap Job runs every `*.sql` file from the mounted SQL directory in lexical order
+- if `sql.selectedFiles` is non-empty, the bootstrap Job runs only those files, in the exact listed order
+- if `sql.selectedFiles` includes a missing file or a file that does not end in `.sql`, the bootstrap Job fails fast with a clear error
+
+File names should end in `.sql`. The bootstrap Job runs after the StatefulSet is created and the first Redis pod is reachable.
 
 If you are installing next to an existing ThingsBoard instance, the usual first pass is:
 
@@ -214,7 +253,7 @@ High-value fields to review before every install:
 | Placement | `nodeSelector`, `tolerations`, `affinity` |
 | Metadata | `commonLabels`, `commonAnnotations`, `podLabels`, `podAnnotations` |
 | Services | `service.*`, `headlessService.*` |
-| SQL packaging | `sql.files`, `sql.existingConfigMap`, `sql.mountPath` |
+| SQL packaging | `sql.files`, `sql.selectedFiles`, `sql.existingConfigMap`, `sql.mountPath` |
 | ThingsBoard | `thingsboard.baseUrl`, `thingsboard.existingSecret`, `thingsboard.existingSecretKey` |
 | Connect ingress | `connect.ingress.*` |
 | Connect egress | `connect.egress.*` |

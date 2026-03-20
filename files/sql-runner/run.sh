@@ -15,6 +15,7 @@ set -euo pipefail
 REDIS_HOST="${REDIS_HOST:-localhost}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 SQL_DIR="${SQL_DIR:-/sql}"
+SQL_SELECTED_FILES="${SQL_SELECTED_FILES:-}"
 MAX_RETRIES="${MAX_RETRIES:-30}"
 RETRY_DELAY="${RETRY_DELAY:-2}"
 
@@ -131,6 +132,55 @@ process_sql_file() {
   fi
 }
 
+collect_default_sql_files() {
+  local -a files
+  local file
+
+  shopt -s nullglob
+  files=("$SQL_DIR"/*.sql)
+  shopt -u nullglob
+
+  if [ "${#files[@]}" -eq 0 ]; then
+    log "WARNING: No .sql files found in $SQL_DIR"
+    return 0
+  fi
+
+  for file in "${files[@]}"; do
+    printf '%s\n' "$file"
+  done
+}
+
+collect_selected_sql_files() {
+  local selected_file
+  local file_path
+  local found_files=0
+
+  while IFS= read -r selected_file; do
+    [ -n "$selected_file" ] || continue
+    found_files=1
+
+    case "$selected_file" in
+      *.sql) ;;
+      *)
+        log "ERROR: Selected SQL file must end with .sql: $selected_file"
+        return 1
+        ;;
+    esac
+
+    file_path="$SQL_DIR/$selected_file"
+    if [ ! -f "$file_path" ]; then
+      log "ERROR: Selected SQL file not found: $selected_file"
+      return 1
+    fi
+
+    printf '%s\n' "$file_path"
+  done <<< "$SQL_SELECTED_FILES"
+
+  if [ "$found_files" -eq 0 ]; then
+    log "WARNING: SQL_SELECTED_FILES was set but no file names were provided"
+  fi
+}
+
 main() {
   log "Starting sql-runner"
   log "Redis: ${REDIS_HOST}:${REDIS_PORT}"
@@ -143,16 +193,26 @@ main() {
     exit 0
   fi
 
-  local found_files=0
-  for file in "$SQL_DIR"/*.sql; do
-    [ -e "$file" ] || continue
-    found_files=1
+  local -a files_to_process=()
+  local file
+
+  if [ -n "$SQL_SELECTED_FILES" ]; then
+    log "Using explicit SQL file selection"
+    while IFS= read -r file; do
+      [ -n "$file" ] || continue
+      files_to_process+=("$file")
+    done < <(collect_selected_sql_files)
+  else
+    log "Using lexical SQL file discovery"
+    while IFS= read -r file; do
+      [ -n "$file" ] || continue
+      files_to_process+=("$file")
+    done < <(collect_default_sql_files)
+  fi
+
+  for file in "${files_to_process[@]}"; do
     process_sql_file "$file"
   done
-
-  if [ "$found_files" -eq 0 ]; then
-    log "WARNING: No .sql files found in $SQL_DIR"
-  fi
 
   log "sql-runner completed successfully"
   exit 0

@@ -50,6 +50,8 @@ spec:
               value: {{ .Values.rtbotRedis.port | quote }}
             - name: SQL_DIR
               value: {{ .Values.sql.mountPath | quote }}
+            - name: SQL_SELECTED_FILES
+              value: {{ join "\n" .Values.sql.selectedFiles | quote }}
             {{- with .Values.sqlRunner.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
