@@ -27,7 +27,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chart_version="$(python3 -c \"import pathlib, re; print(re.search(r'^version:\\s*(.+)$', pathlib.Path('Chart.yaml').read_text(), re.M).group(1))\")"
+          chart_version="$(python3 - <<'PY'
+          import pathlib
+
+          for line in pathlib.Path('Chart.yaml').read_text().splitlines():
+              if line.startswith('version:'):
+                  print(line.split(':', 1)[1].strip())
+                  break
+          else:
+              raise SystemExit('unable to determine chart version from Chart.yaml')
+          PY
+          )"
           owner_lc="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           expected_tag="coprocessor-chart-v${chart_version}"
 
