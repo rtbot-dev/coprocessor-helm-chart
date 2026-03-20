@@ -15,7 +15,7 @@ It does not claim to validate real ThingsBoard behavior. The harness creates onl
 Run it from the repository root or anywhere else:
 
 ```bash
-charts/coprocessor/tests/install-smoke.sh
+tests/install-smoke.sh
 ```
 
 Useful environment overrides:

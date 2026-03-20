@@ -55,6 +55,6 @@ Egress:
 {{- end }}
 
 Demo profile:
-- Use `-f charts/coprocessor/values-demo.yaml` for a low-friction example configuration with inline SQL and no PVC requirement.
+- Use `-f values-demo.yaml` for a low-friction example configuration with inline SQL and no PVC requirement.
 
-See `charts/coprocessor/README.md` for production override examples and SQL packaging guidance.
+See the repo root `README.md` for production override examples and SQL packaging guidance.

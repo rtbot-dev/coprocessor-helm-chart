@@ -55,7 +55,7 @@ The base chart now assumes the common in-cluster setup: you already have ThingsB
 If that matches your cluster, the smallest install is just a release plus at least one SQL file:
 
 ```bash
-helm install coprocessor charts/coprocessor \
+helm install coprocessor . \
   --set-file sql.files.01-demo\.sql=./pipelines/01-demo.sql
 ```
 
@@ -81,15 +81,15 @@ That install renders:
 `values-demo.yaml` is the low-friction walkthrough profile. It keeps the same-namespace ThingsBoard default from the base chart, disables persistence so clusters without a default StorageClass still work, and embeds a tiny SQL example.
 
 ```bash
-helm install coprocessor-demo charts/coprocessor \
-  -f charts/coprocessor/values-demo.yaml
+helm install coprocessor-demo . \
+  -f values-demo.yaml
 ```
 
 Use the demo profile when you want a fast walkthrough. Use base `values.yaml` when you already have ThingsBoard running in the namespace and only need to supply SQL. Reserve explicit URL overrides for production variants such as cross-namespace or external ThingsBoard deployments.
 
 ## Install smoke testing
 
-A first install harness now exists at `charts/coprocessor/tests/install-smoke.sh`.
+A first install harness now exists at `tests/install-smoke.sh`.
 
 It is intentionally conservative:
 
@@ -97,7 +97,7 @@ It is intentionally conservative:
 - it refuses to use an arbitrary reachable `kubectl` context unless `ALLOW_NONLOCAL_CONTEXT=1`
 - it validates the narrow same-namespace install path only
 
-See `charts/coprocessor/tests/README.md` for details and the list of `#480` scenarios that still require broader validation.
+See `tests/README.md` for details and the list of `#480` scenarios that still require broader validation.
 
 ## Production configuration guidance
 
@@ -119,7 +119,7 @@ For production, override the default ThingsBoard URL when either of these is tru
 Example production-oriented install:
 
 ```bash
-helm install coprocessor charts/coprocessor \
+helm install coprocessor . \
   --set thingsboard.baseUrl=https://thingsboard.example.com \
   --set persistence.size=50Gi \
   --set persistence.storageClassName=fast-ssd \
