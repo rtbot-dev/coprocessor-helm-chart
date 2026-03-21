@@ -91,6 +91,10 @@ spec:
               {{- else }}
               value: {{ .Values.demo.device.token | quote }}
               {{- end }}
+            - name: DEMO_TB_API_KEY
+              value: {{ .Values.thingsboard.apiKey | quote }}
+            - name: DEMO_ALARM_RULES_ENABLED
+              value: {{ .Values.demo.alarmRules.enabled | quote }}
           volumeMounts:
             - name: demo-scripts
               mountPath: /demo
