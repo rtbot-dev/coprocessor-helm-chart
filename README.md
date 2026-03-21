@@ -65,7 +65,7 @@ ThingsBoard 4.3+ supports API keys. If you have created an API key in your Thing
 
 ```bash
 helm upgrade --install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.3.0 \
+  --version 0.3.1 \
   --namespace thingsboard \
   --set thingsboard.apiKey=<your-api-key>
 ```
@@ -365,6 +365,8 @@ The chart does not currently manage `coprocessor:device_tokens` for you.
 ## Alarm rules
 
 When `demo.alarmRules.enabled=true` (the default), the demo bootstrap automatically provisions alarm rules on the ThingsBoard device profile. This means computed telemetry keys produced by the SQL pipeline can trigger ThingsBoard alarms without any manual configuration.
+
+The bootstrap uses the ThingsBoard 4.3+ "Calculated Fields" API (`POST /api/calculatedField` with `type: ALARM`), which corresponds to the "Actual" alarm rules tab in the ThingsBoard UI. Any legacy alarm rules from the "Old" system are cleaned up automatically.
 
 The default demo provisions a single alarm rule:
 

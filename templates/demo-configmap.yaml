@@ -158,61 +158,117 @@ data:
         return "", ""
 
 
-    def provision_alarm_rules(auth_headers, device_profile_id):
+    def cleanup_legacy_alarm_rules(auth_headers, device_profile_id):
+        """Remove legacy alarm rules from device profile (Old system)."""
         profile = tb_request("GET", "/api/deviceProfile/%s" % device_profile_id, auth_headers=auth_headers)
-        alarm_rules = [
-            {
-                "id": "high_anomaly_score",
-                "alarmType": "high_anomaly_score",
+        if profile and profile.get("profileData", {}).get("alarms"):
+            profile["profileData"]["alarms"] = []
+            tb_request("POST", "/api/deviceProfile", payload=profile, auth_headers=auth_headers)
+            log("cleaned up legacy alarm rules from device profile")
+
+
+    def provision_alarm_rules(auth_headers, device_profile_id):
+        cleanup_legacy_alarm_rules(auth_headers, device_profile_id)
+        alarm_name = "high_anomaly_score"
+        # Check if alarm rule already exists (idempotent)
+        existing = tb_request(
+            "GET",
+            "/api/DEVICE_PROFILE/%s/calculatedFields?pageSize=100&page=0&sortProperty=createdTime&sortOrder=DESC&type=ALARM" % device_profile_id,
+            auth_headers=auth_headers,
+        )
+        if existing and existing.get("data"):
+            for rule in existing["data"]:
+                if rule.get("name") == alarm_name:
+                    log("alarm rule '%s' already exists (id: %s), skipping" % (alarm_name, rule["id"]["id"]))
+                    return
+        # Create alarm rule via calculatedField API (TB 4.3+ "Actual" alarm system)
+        alarm_rule = {
+            "entityId": {
+                "entityType": "DEVICE_PROFILE",
+                "id": device_profile_id,
+            },
+            "type": "ALARM",
+            "name": alarm_name,
+            "configuration": {
+                "type": "ALARM",
+                "arguments": {
+                    "anomaly_score": {
+                        "refEntityKey": {
+                            "key": "anomaly_score",
+                            "type": "TS_LATEST",
+                        },
+                        "defaultValue": "",
+                    }
+                },
                 "createRules": {
                     "WARNING": {
                         "condition": {
-                            "condition": [
-                                {
-                                    "key": {"type": "TIME_SERIES", "key": "anomaly_score"},
-                                    "valueType": "NUMERIC",
-                                    "predicate": {
-                                        "type": "NUMERIC",
-                                        "operation": "GREATER",
-                                        "value": {"defaultValue": 10.0, "userValue": None, "dynamicValue": None},
-                                    },
-                                }
-                            ],
-                            "spec": {"type": "SIMPLE"},
+                            "type": "SIMPLE",
+                            "expression": {
+                                "type": "SIMPLE",
+                                "filters": [
+                                    {
+                                        "argument": "anomaly_score",
+                                        "valueType": "NUMERIC",
+                                        "operation": "AND",
+                                        "predicates": [
+                                            {
+                                                "type": "NUMERIC",
+                                                "operation": "GREATER",
+                                                "value": {
+                                                    "staticValue": 10.0,
+                                                    "dynamicValueArgument": None,
+                                                },
+                                            }
+                                        ],
+                                    }
+                                ],
+                                "operation": "AND",
+                            },
+                            "schedule": None,
                         },
-                        "schedule": None,
                         "alarmDetails": None,
                         "dashboardId": None,
                     }
                 },
                 "clearRule": {
                     "condition": {
-                        "condition": [
-                            {
-                                "key": {"type": "TIME_SERIES", "key": "anomaly_score"},
-                                "valueType": "NUMERIC",
-                                "predicate": {
-                                    "type": "NUMERIC",
-                                    "operation": "LESS_OR_EQUAL",
-                                    "value": {"defaultValue": 10.0, "userValue": None, "dynamicValue": None},
-                                },
-                            }
-                        ],
-                        "spec": {"type": "SIMPLE"},
+                        "type": "SIMPLE",
+                        "expression": {
+                            "type": "SIMPLE",
+                            "filters": [
+                                {
+                                    "argument": "anomaly_score",
+                                    "valueType": "NUMERIC",
+                                    "operation": "AND",
+                                    "predicates": [
+                                        {
+                                            "type": "NUMERIC",
+                                            "operation": "LESS_OR_EQUAL",
+                                            "value": {
+                                                "staticValue": 10.0,
+                                                "dynamicValueArgument": None,
+                                            },
+                                        }
+                                    ],
+                                }
+                            ],
+                            "operation": "AND",
+                        },
+                        "schedule": None,
                     },
-                    "schedule": None,
                     "alarmDetails": None,
                     "dashboardId": None,
                 },
                 "propagate": False,
                 "propagateToOwner": False,
                 "propagateToTenant": False,
-                "propagateRelationTypes": [],
-            }
-        ]
-        profile["profileData"]["alarms"] = alarm_rules
-        tb_request("POST", "/api/deviceProfile", payload=profile, auth_headers=auth_headers)
-        log("provisioned alarm rule 'high_anomaly_score' on device profile %s" % device_profile_id)
+                "propagateRelationTypes": None,
+                "output": None,
+            },
+        }
+        result = tb_request("POST", "/api/calculatedField", payload=alarm_rule, auth_headers=auth_headers)
+        log("provisioned alarm rule '%s' on device profile %s (id: %s)" % (alarm_name, device_profile_id, result["id"]["id"]))
 
 
     def main():
