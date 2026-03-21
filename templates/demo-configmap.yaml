@@ -73,15 +73,15 @@ data:
         log("stored demo device token mapping for %s" % device_name)
 
 
-    def tb_request(method, path, payload=None, bearer_token=None):
+    def tb_request(method, path, payload=None, auth_headers=None):
         base_url = os.environ["DEMO_THINGSBOARD_URL"].rstrip("/")
         url = base_url + path
         data = None
         headers = {"Content-Type": "application/json"}
+        if auth_headers:
+            headers.update(auth_headers)
         if payload is not None:
             data = json.dumps(payload).encode("utf-8")
-        if bearer_token:
-            headers["X-Authorization"] = "Bearer %s" % bearer_token
         request = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
             with urllib.request.urlopen(request, timeout=15) as response:
@@ -102,27 +102,37 @@ data:
         return username, password
 
 
-    def ensure_demo_device_token():
+    def tb_auth():
+        api_key = os.environ.get("DEMO_TB_API_KEY", "").strip()
+        if api_key:
+            log("using ThingsBoard API key authentication")
+            return {"X-Authorization": "ApiKey %s" % api_key}
         username, password = get_admin_credentials()
-        device_name = os.environ["DEMO_DEVICE_NAME"]
-        device_type = os.environ["DEMO_DEVICE_TYPE"]
-
         if username and password:
-            log("admin credentials provided, ensuring demo device exists")
+            log("using ThingsBoard username/password authentication")
             login_response = tb_request(
                 "POST",
                 "/api/auth/login",
                 {"username": username, "password": password},
             )
-            bearer_token = login_response["token"]
+            return {"X-Authorization": "Bearer %s" % login_response["token"]}
+        return None
+
+
+    def ensure_demo_device_token(auth_headers):
+        device_name = os.environ["DEMO_DEVICE_NAME"]
+        device_type = os.environ["DEMO_DEVICE_TYPE"]
+
+        if auth_headers:
+            log("ensuring demo device exists via ThingsBoard API")
             encoded_name = urllib.parse.quote(device_name, safe="")
-            device = tb_request("GET", "/api/tenant/devices?deviceName=%s" % encoded_name, bearer_token=bearer_token)
+            device = tb_request("GET", "/api/tenant/devices?deviceName=%s" % encoded_name, auth_headers=auth_headers)
             if device is None:
                 device = tb_request(
                     "POST",
                     "/api/device",
                     {"name": device_name, "type": device_type},
-                    bearer_token=bearer_token,
+                    auth_headers=auth_headers,
                 )
                 log("created demo device %s" % device_name)
             else:
@@ -132,25 +142,26 @@ data:
             credentials = tb_request(
                 "GET",
                 "/api/device/%s/credentials" % device_id,
-                bearer_token=bearer_token,
+                auth_headers=auth_headers,
             )
             credentials_id = credentials.get("credentialsId", "").strip()
             if not credentials_id:
                 raise RuntimeError("device credentials were empty")
-            return credentials_id
+            return credentials_id, device_id
 
         device_token = os.environ.get("DEMO_DEVICE_TOKEN", "").strip()
         if device_token:
             log("using pre-provisioned demo device token")
-            return device_token
+            return device_token, ""
 
-        log("no admin credentials or device token supplied; leaving token map unset")
-        return ""
+        log("no auth credentials or device token supplied; leaving token map unset")
+        return "", ""
 
 
     def main():
         wait_for_redis()
-        device_token = ensure_demo_device_token()
+        auth_headers = tb_auth()
+        device_token, device_id = ensure_demo_device_token(auth_headers)
         if device_token:
             redis_set_device_token(os.environ["DEMO_DEVICE_NAME"], device_token)
         return 0
