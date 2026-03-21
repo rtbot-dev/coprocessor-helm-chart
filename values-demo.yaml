@@ -9,7 +9,7 @@ persistence:
 
 demo:
   admin:
-    username: ""
-    password: ""
+    username: tenant@thingsboard.org
+    password: tenant
   device:
     token: ""

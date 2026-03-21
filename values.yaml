@@ -81,8 +81,8 @@ demo:
     existingSecret: ""
     existingSecretKey: DEMO_DEVICE_TOKEN
   admin:
-    username: ""
-    password: ""
+    username: tenant@thingsboard.org
+    password: tenant
     existingSecret: ""
     usernameKey: THINGSBOARD_USERNAME
     passwordKey: THINGSBOARD_PASSWORD

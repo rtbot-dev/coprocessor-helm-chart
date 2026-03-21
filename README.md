@@ -21,8 +21,10 @@ If you already have ThingsBoard running in the same namespace as a Service named
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
   --set demo.admin.username=tenant@thingsboard.org \
-  --set demo.admin.password=change-me
+  --set demo.admin.password=tenant
 ```
+
+These are now the chart defaults for the demo path and are meant for fresh/local ThingsBoard installs. Override them in any environment where those credentials have already been changed.
 
 What this command is doing:
 
@@ -31,7 +33,7 @@ What this command is doing:
 - logging into ThingsBoard with admin credentials, creating or reusing the demo device, and fetching its token
 - registering that token so derived demo telemetry can flow back into ThingsBoard
 
-If you already created a demo device yourself, replace the admin credentials with `--set demo.device.token=<device-access-token>`. If you are done with the walkthrough and want your own SQL instead, disable the demo with `--set demo.enabled=false`. See [Simple and advanced SQL file input](#simple-and-advanced-sql-file-input).
+If you already created a demo device yourself, replace the admin credentials with `--set demo.device.token=<device-access-token>`. If your ThingsBoard credentials are not the fresh/local defaults, override them explicitly. If you are done with the walkthrough and want your own SQL instead, disable the demo with `--set demo.enabled=false`. See [Simple and advanced SQL file input](#simple-and-advanced-sql-file-input).
 
 ## How to tell it worked
 
@@ -100,7 +102,7 @@ Install directly from GHCR:
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
   --set demo.admin.username=tenant@thingsboard.org \
-  --set demo.admin.password=change-me
+  --set demo.admin.password=tenant
 ```
 
 ## Minimum install
@@ -112,7 +114,7 @@ If that matches your cluster, the smallest install from the repository root is t
 ```bash
 helm install coprocessor . \
   --set demo.admin.username=tenant@thingsboard.org \
-  --set demo.admin.password=change-me
+  --set demo.admin.password=tenant
 ```
 
 Before installing, confirm the service name resolves the way the chart expects:
@@ -159,7 +161,7 @@ helm install coprocessor-demo . \
   -f values-demo.yaml
 ```
 
-Use the demo profile when you want a fast walkthrough. Fill either `demo.admin.*` to auto-create the device or `demo.device.token` to reuse a pre-provisioned one. For professional use, disable demo mode and switch to explicit SQL packaging plus production-oriented overrides.
+Use the demo profile when you want a fast walkthrough. By default it assumes a fresh/local ThingsBoard install with `tenant@thingsboard.org` / `tenant`. Fill either `demo.admin.*` to auto-create the device or `demo.device.token` to reuse a pre-provisioned one. For professional use, disable demo mode and switch to explicit SQL packaging plus production-oriented overrides.
 
 ## Install smoke testing
 
