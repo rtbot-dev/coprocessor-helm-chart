@@ -6,10 +6,12 @@ commonAnnotations: {}
 
 imagePullSecrets: []
 
+kernelId: "default"
+
 images:
   rtbotRedis:
     repository: ghcr.io/rtbot-dev/rtbot-redis
-    tag: "0.2.0"
+    tag: "0.3.0"
     pullPolicy: IfNotPresent
   sqlRunner:
     repository: redis
@@ -77,7 +79,7 @@ demo:
   sqlFileName: 00-demo.sql
   ingressStream: demo_sensors
   egressStreams:
-    - rtbot:mv:demo_signals
+    - rtbot:mv:default:demo_signals
   alarmRules:
     enabled: true
   device:

@@ -52,6 +52,8 @@ spec:
               value: {{ .Values.sql.mountPath | quote }}
             - name: SQL_SELECTED_FILES
               value: {{ join "\n" .Values.sql.selectedFiles | quote }}
+            - name: KERNEL_ID
+              value: {{ .Values.kernelId | quote }}
             - name: MAX_RETRIES
               value: {{ .Values.sqlRunner.waitForRedis.maxRetries | quote }}
             - name: RETRY_DELAY

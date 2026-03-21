@@ -67,7 +67,7 @@ data:
                   command: get
                   retries: 0
                   args_mapping: |
-                    root = ["rtbot:sql:stream:" + metadata("stream_name")]
+                    root = ["rtbot:sql:{{ .Values.kernelId }}:stream:" + metadata("stream_name")]
             result_map: |
               meta schema_str = if errored() { "" } else { content().string() }
 
@@ -146,15 +146,27 @@ data:
       processors:
         - branch:
             request_map: |
-              let view_name = this.blobId.split(":").index(-1).trim_prefix("sql_mv_")
               root = ""
-              meta extracted_view_name = $view_name
             processors:
               - redis:
                   url: "${REDIS_URL:redis://localhost:6379}"
                   command: get
                   args_mapping: |
-                    root = ["rtbot:sql:view:" + metadata("extracted_view_name")]
+                    {{- /*
+                      Derive view name from the egress stream key.
+                      Stream format: rtbot:mv:<kernel_id>:<view_name>
+                      We take the last segment as the view name.
+                      When multiple egress streams are configured the first
+                      match wins — fine for single-view demos; multi-view
+                      egress will need per-stream routing later.
+                    */ -}}
+                    {{- $kernelId := .Values.kernelId -}}
+                    {{- $viewName := "unknown" -}}
+                    {{- range $egressStreams -}}
+                      {{- $parts := splitList ":" . -}}
+                      {{- $viewName = last $parts -}}
+                    {{- end }}
+                    root = ["rtbot:sql:{{ $kernelId }}:view:{{ $viewName }}"]
               - catch:
                   - mapping: 'root = ""'
             result_map: |

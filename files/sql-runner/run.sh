@@ -7,6 +7,7 @@
 #   REDIS_HOST    - Redis host (default: localhost)
 #   REDIS_PORT    - Redis port (default: 6379)
 #   SQL_DIR       - Directory containing *.sql files (default: /sql)
+#   KERNEL_ID     - Kernel ID for RTBOT.SQL scoping (default: default)
 #   MAX_RETRIES   - Max connection retries (default: 30)
 #   RETRY_DELAY   - Seconds between retries (default: 2)
 
@@ -16,6 +17,7 @@ REDIS_HOST="${REDIS_HOST:-localhost}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 SQL_DIR="${SQL_DIR:-/sql}"
 SQL_SELECTED_FILES="${SQL_SELECTED_FILES:-}"
+KERNEL_ID="${KERNEL_ID:-default}"
 MAX_RETRIES="${MAX_RETRIES:-30}"
 RETRY_DELAY="${RETRY_DELAY:-2}"
 
@@ -48,11 +50,12 @@ get_deployed_pipelines() {
 
 is_view_deployed() {
   local view_name="$1"
-  local pipeline_id="sql_mv_${view_name}"
+  local program_key="rtbot:programs:${KERNEL_ID}:${view_name}"
   local info
   info=$(get_deployed_pipelines)
 
-  if echo "$info" | grep -q "\"${pipeline_id}\""; then
+  # Match on program_key (.[1] in RTBOT.INFO json output)
+  if echo "$info" | grep -q "\"${program_key}\""; then
     return 0
   fi
   return 1
@@ -81,14 +84,14 @@ execute_statement() {
     local view_name
     view_name=$(extract_view_name "$trimmed")
     if [ -n "$view_name" ] && is_view_deployed "$view_name"; then
-      log "Pipeline sql_mv_${view_name} already deployed, skipping"
+      log "Pipeline for view '${view_name}' already deployed (kernel: ${KERNEL_ID}), skipping"
       return 0
     fi
   fi
 
   log "Executing: ${trimmed:0:80}..."
   local result
-  result=$(redis_cmd RTBOT.SQL "$trimmed" 2>&1)
+  result=$(redis_cmd RTBOT.SQL "$trimmed" "$KERNEL_ID" 2>&1)
   local exit_code=$?
 
   if [ $exit_code -ne 0 ]; then
