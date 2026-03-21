@@ -44,6 +44,17 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.statefulset.terminationGracePeriodSeconds }}
+      {{- if .Values.persistence.enabled }}
+      initContainers:
+        - name: init-data-dir
+          image: "{{ .Values.images.rtbotRedis.repository }}:{{ .Values.images.rtbotRedis.tag }}"
+          command: ["sh", "-c", "chown -R 100:101 /data"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      {{- end }}
       containers:
         - name: rtbot-redis
           image: "{{ .Values.images.rtbotRedis.repository }}:{{ .Values.images.rtbotRedis.tag }}"

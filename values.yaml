@@ -9,7 +9,7 @@ imagePullSecrets: []
 images:
   rtbotRedis:
     repository: ghcr.io/rtbot-dev/rtbot-redis
-    tag: "0.1.1"
+    tag: "0.2.0"
     pullPolicy: IfNotPresent
   sqlRunner:
     repository: redis
@@ -32,7 +32,10 @@ serviceAccount:
 
 podAnnotations: {}
 podLabels: {}
-podSecurityContext: {}
+podSecurityContext:
+  fsGroup: 101
+  runAsUser: 100
+  runAsGroup: 101
 
 statefulset:
   replicas: 1

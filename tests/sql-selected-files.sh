@@ -183,8 +183,64 @@ EOF
   assert_contains "$(cat "$output_file")" 'ERROR: Selected SQL file must end with .sql'
 }
 
+run_redis_err_case() {
+  local work_dir
+  local sql_dir
+  local bin_dir
+  local output_file
+
+  work_dir="$(mktemp -d)"
+  sql_dir="$work_dir/sql"
+  bin_dir="$work_dir/bin"
+  output_file="$work_dir/output.log"
+  mkdir -p "$sql_dir"
+
+  cat > "$sql_dir/01-first.sql" <<'EOF'
+CREATE STREAM first_stream (value DOUBLE PRECISION);
+EOF
+
+  mkdir -p "$bin_dir"
+  cat > "$bin_dir/redis-cli" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "${5:-}" = "PING" ]; then
+  printf 'PONG\n'
+  exit 0
+fi
+
+if [ "${5:-}" = "RTBOT.INFO" ]; then
+  printf '{}\n'
+  exit 0
+fi
+
+if [ "${5:-}" = "RTBOT.SQL" ]; then
+  printf 'ERR unknown command %s\n' "${6:-}"
+  exit 0
+fi
+
+exit 1
+EOF
+  chmod +x "$bin_dir/redis-cli"
+
+  set +e
+  PATH="$bin_dir:$PATH" \
+  SQL_DIR="$sql_dir" \
+  bash "$RUNNER" > "$output_file" 2>&1
+  status=$?
+  set -e
+
+  if [ "$status" -eq 0 ]; then
+    printf 'expected redis ERR case to fail\n' >&2
+    exit 1
+  fi
+
+  assert_contains "$(cat "$output_file")" 'ERROR: Redis error:'
+}
+
 run_success_case
 run_missing_file_case
 run_non_sql_case
+run_redis_err_case
 
 printf 'sql selected files tests passed\n'

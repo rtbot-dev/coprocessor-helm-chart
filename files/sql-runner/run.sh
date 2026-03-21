@@ -96,7 +96,7 @@ execute_statement() {
     return 1
   fi
 
-  if echo "$result" | grep -q "^(error)"; then
+  if echo "$result" | grep -Eq '^(\(error\)|ERR )'; then
     log "ERROR: Redis error: $result"
     return 1
   fi
