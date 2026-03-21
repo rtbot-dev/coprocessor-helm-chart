@@ -104,7 +104,13 @@ def ensure_demo_device_token(auth_headers, device_name):
         log("ensuring demo device %s exists via ThingsBoard API" % device_name)
         import urllib.parse
         encoded_name = urllib.parse.quote(device_name, safe="")
-        device = tb_request("GET", "/api/tenant/devices?deviceName=%s" % encoded_name, auth_headers=auth_headers)
+        try:
+            device = tb_request("GET", "/api/tenant/devices?deviceName=%s" % encoded_name, auth_headers=auth_headers)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                device = None
+            else:
+                raise
         if device is None:
             device = tb_request(
                 "POST",
