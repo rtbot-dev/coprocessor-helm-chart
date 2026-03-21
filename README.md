@@ -19,7 +19,9 @@
   </a>
 </p>
 
-The `coprocessor` chart lets ThingsBoard users run RtBot SQL on live device telemetry without hand-wiring the runtime stack. Install it beside an existing ThingsBoard deployment, and the chart now starts in a default-on demo mode that continuously emits telemetry, loads demo SQL, and can publish derived signals back into ThingsBoard. Later, disable the demo and provide your own SQL for a more professional deployment shape.
+Extend the analytical capabilities of your existing ThingsBoard deployment in minutes. The `coprocessor` chart adds a ready-to-run RtBot-powered processing layer that can ingest telemetry, execute SQL-defined signals, and write derived data back into your platform.
+
+Start with the default demo to see the full loop immediately, then disable it and bring your own SQL when you are ready for a more professional deployment shape.
 
 This repository is the public release surface for the coprocessor Helm chart and the public `rtbot-redis` image.
 
