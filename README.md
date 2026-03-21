@@ -42,7 +42,7 @@ In a real cluster, the simplest first try is to install the chart into that exis
 
 ```bash
 helm upgrade --install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.1.2 \
+  --version 0.1.3 \
   --namespace thingsboard \
   --set demo.admin.username=tenant@thingsboard.org \
   --set demo.admin.password=tenant
@@ -117,14 +117,14 @@ Pull a released chart locally:
 
 ```bash
 helm pull oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.1.2
+  --version 0.1.3
 ```
 
 Install directly from GHCR:
 
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.1.2 \
+  --version 0.1.3 \
   --set demo.admin.username=tenant@thingsboard.org \
   --set demo.admin.password=tenant
 ```

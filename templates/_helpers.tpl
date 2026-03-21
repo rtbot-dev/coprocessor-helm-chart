@@ -31,6 +31,11 @@ app.kubernetes.io/name: {{ include "coprocessor.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
+{{- define "coprocessor.persistentLabels" -}}
+{{ include "coprocessor.selectorLabels" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
 {{- define "coprocessor.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create -}}
 {{- default (include "coprocessor.fullname" .) .Values.serviceAccount.name -}}
