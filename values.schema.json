@@ -101,6 +101,9 @@
         "baseUrl": {
           "type": "string"
         },
+        "apiKey": {
+          "type": "string"
+        },
         "existingSecret": {
           "type": "string"
         },
@@ -169,6 +172,14 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "alarmRules": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
           }
         },
         "device": {
