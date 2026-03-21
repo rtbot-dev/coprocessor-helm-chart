@@ -59,6 +59,19 @@ What this command is doing:
 
 If you already created a demo device yourself, replace the admin credentials with `--set demo.device.token=<device-access-token>`. If your ThingsBoard credentials are not the fresh/local defaults, override them explicitly. If you are done with the walkthrough and want your own SQL instead, disable the demo with `--set demo.enabled=false`. See [Simple and advanced SQL file input](#simple-and-advanced-sql-file-input).
 
+### API key authentication
+
+ThingsBoard 4.3+ supports API keys. If you have created an API key in your ThingsBoard tenant, you can use it instead of username/password credentials:
+
+```bash
+helm upgrade --install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
+  --version 0.3.0 \
+  --namespace thingsboard \
+  --set thingsboard.apiKey=<your-api-key>
+```
+
+When `thingsboard.apiKey` is set, the demo bootstrap uses it as the primary authentication method. If the API key is empty, it falls back to `demo.admin.username` / `demo.admin.password` JWT login.
+
 ## How to tell it worked
 
 Run:
@@ -86,6 +99,7 @@ If those do not appear or do not become ready, continue with `tests/README.md` a
 - [Production configuration guidance](#production-configuration-guidance)
 - [SQL packaging guidance](#sql-packaging-guidance)
 - [Ingress and egress guidance](#ingress-and-egress-guidance)
+- [Alarm rules](#alarm-rules)
 - [Values guide](#values-guide)
 
 ## What the chart installs
@@ -348,6 +362,31 @@ That means you must choose one of these operating models:
 
 The chart does not currently manage `coprocessor:device_tokens` for you.
 
+## Alarm rules
+
+When `demo.alarmRules.enabled=true` (the default), the demo bootstrap automatically provisions alarm rules on the ThingsBoard device profile. This means computed telemetry keys produced by the SQL pipeline can trigger ThingsBoard alarms without any manual configuration.
+
+The default demo provisions a single alarm rule:
+
+| Alarm type | Key | Condition | Severity |
+| --- | --- | --- | --- |
+| `high_anomaly_score` | `anomaly_score` | `> 10.0` creates, `<= 10.0` clears | WARNING |
+
+### How it works
+
+1. The demo SQL pipeline computes `anomaly_score` from temperature delta and trend signals
+2. The egress pipeline pushes `anomaly_score` (and other computed keys) as telemetry to ThingsBoard
+3. ThingsBoard evaluates the alarm rule on each incoming telemetry update
+4. When `anomaly_score` exceeds the threshold, ThingsBoard creates an alarm; when it drops back, ThingsBoard clears it
+
+### Multi-device behavior
+
+Alarm rules live on the **device profile**, not individual devices. All devices that share the `coprocessor-demo` profile automatically get the same alarm rules. The SQL pipeline uses `GROUP BY device_id`, so each device gets independent anomaly scoring.
+
+### Production use
+
+For production deployments, disable the demo alarm rules with `--set demo.alarmRules.enabled=false` and configure alarm rules directly in the ThingsBoard UI against your own computed telemetry keys. The coprocessor only needs to push the right telemetry; ThingsBoard handles the full alarm lifecycle (create, clear, acknowledge, escalate).
+
 ## Values guide
 
 High-value fields to review before every install:
@@ -359,9 +398,9 @@ High-value fields to review before every install:
 | Placement | `nodeSelector`, `tolerations`, `affinity` |
 | Metadata | `commonLabels`, `commonAnnotations`, `podLabels`, `podAnnotations` |
 | Services | `service.*`, `headlessService.*` |
-| Demo walkthrough | `demo.enabled`, `demo.admin.*`, `demo.device.*`, `demo.publisher.*` |
+| Demo walkthrough | `demo.enabled`, `demo.admin.*`, `demo.device.*`, `demo.publisher.*`, `demo.alarmRules.*` |
 | SQL packaging | `sql.files`, `sql.selectedFiles`, `sql.existingConfigMap`, `sql.mountPath` |
-| ThingsBoard | `thingsboard.baseUrl`, `thingsboard.existingSecret`, `thingsboard.existingSecretKey` |
+| ThingsBoard | `thingsboard.baseUrl`, `thingsboard.apiKey`, `thingsboard.existingSecret`, `thingsboard.existingSecretKey` |
 | Connect ingress | `connect.ingress.*` |
 | Connect egress | `connect.egress.*` |
 | Secrets | `secret.create`, `secret.stringData`, `connect.extraEnvFrom`, `sqlRunner.extraEnvFrom`, `rtbotRedis.extraEnvFrom` |
