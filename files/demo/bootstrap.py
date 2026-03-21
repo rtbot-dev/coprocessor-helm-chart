@@ -45,7 +45,7 @@ def wait_for_redis():
 
 
 def redis_set_device_token(device_name, token):
-    resp = redis_request(["HSET", "device_tokens", device_name, token])
+    resp = redis_request(["HSET", "coprocessor:device_tokens", device_name, token])
     if resp:
         log("stored token for device %s in Redis hash map 'device_tokens'" % device_name)
     else:
