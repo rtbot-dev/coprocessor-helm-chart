@@ -1,0 +1,7 @@
+{
+  "title": "Coprocessor Demo Dashboard",
+  "configuration": {
+    "description": "Demo dashboard to be overwritten",
+    "widgets": {}
+  }
+}
