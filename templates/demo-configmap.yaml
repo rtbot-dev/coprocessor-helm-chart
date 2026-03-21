@@ -189,7 +189,8 @@ data:
 
 
     def publish(step):
-        payload = json.dumps(build_payload(step)).encode("utf-8")
+        data = build_payload(step)
+        payload = json.dumps(data).encode("utf-8")
         timestamp_ms = str(int(time.time() * 1000))
         request = urllib.request.Request(
             os.environ["DEMO_INGEST_URL"],
@@ -203,7 +204,7 @@ data:
         )
         with urllib.request.urlopen(request, timeout=10) as response:
             response.read()
-            return response.status
+            return response.status, data
 
 
     def main():
@@ -211,8 +212,8 @@ data:
         step = 0
         while True:
             try:
-                status = publish(step)
-                log("published step %d with status %s" % (step, status))
+                status, data = publish(step)
+                log("step %d -> %s (status %s)" % (step, json.dumps(data), status))
             except urllib.error.URLError as exc:
                 log("publish failed: %s" % exc)
             step += 1
