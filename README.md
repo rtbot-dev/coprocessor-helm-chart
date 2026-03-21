@@ -38,9 +38,12 @@ Use this chart when you want to:
 
 If you already have ThingsBoard running in the same namespace as a Service named `thingsboard`, the fastest path is the built-in demo:
 
+In a real cluster, the simplest first try is to install the chart into that existing `thingsboard` namespace so the default in-cluster service URL works without extra overrides.
+
 ```bash
-helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
+helm upgrade --install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
   --version 0.1.1 \
+  --namespace thingsboard \
   --set demo.admin.username=tenant@thingsboard.org \
   --set demo.admin.password=tenant
 ```
@@ -129,6 +132,8 @@ helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
 ## Minimum install
 
 The base chart assumes the common in-cluster setup: you already have ThingsBoard running in the same namespace, exposed as `http://thingsboard:8080`.
+
+If your cluster already has a `thingsboard` namespace, prefer installing the chart there first. That keeps the default service discovery path intact and removes one source of configuration error during the first rollout.
 
 If that matches your cluster, the smallest install from the repository root is the demo-first path:
 
