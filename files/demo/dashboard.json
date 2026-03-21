@@ -11,7 +11,7 @@
         "typeFullFqn": "system.cards.simple_card",
         "type": "latest",
         "sizeX": 8,
-        "sizeY": 3,
+        "sizeY": 2,
         "config": {
           "datasources": [
             {
@@ -50,8 +50,8 @@
           "color": "rgba(0,0,0,0.87)",
           "padding": "0px",
           "settings": {
-            "layout": "horizontal",
-            "autoScale": true,
+            "layout": "vertical",
+            "autoScale": false,
             "showLabel": true,
             "labelFont": {
               "family": "Roboto",
@@ -59,35 +59,20 @@
               "sizeUnit": "px",
               "style": "normal",
               "weight": "400",
-              "lineHeight": "1"
+              "lineHeight": "1.5"
             },
             "labelColor": "rgba(0,0,0,0.38)",
             "showIcon": false,
             "valueFont": {
               "family": "Roboto",
-              "size": 52,
+              "size": 32,
               "sizeUnit": "px",
               "style": "normal",
               "weight": "500",
               "lineHeight": "1"
             },
             "valueColor": "#1976D2",
-            "showDate": true,
-            "dateFormat": {
-              "format": null,
-              "lastUpdateAgo": true,
-              "custom": false,
-              "auto": true
-            },
-            "dateFont": {
-              "family": "Roboto",
-              "size": 12,
-              "sizeUnit": "px",
-              "style": "normal",
-              "weight": "400",
-              "lineHeight": "24px"
-            },
-            "dateColor": "rgba(0,0,0,0.38)",
+            "showDate": false,
             "background": {
               "type": "color",
               "color": "#fff",
@@ -119,7 +104,7 @@
         "typeFullFqn": "system.cards.simple_card",
         "type": "latest",
         "sizeX": 8,
-        "sizeY": 3,
+        "sizeY": 2,
         "config": {
           "datasources": [
             {
@@ -158,8 +143,8 @@
           "color": "rgba(0,0,0,0.87)",
           "padding": "0px",
           "settings": {
-            "layout": "horizontal",
-            "autoScale": true,
+            "layout": "vertical",
+            "autoScale": false,
             "showLabel": true,
             "labelFont": {
               "family": "Roboto",
@@ -167,35 +152,20 @@
               "sizeUnit": "px",
               "style": "normal",
               "weight": "400",
-              "lineHeight": "1"
+              "lineHeight": "1.5"
             },
             "labelColor": "rgba(0,0,0,0.38)",
             "showIcon": false,
             "valueFont": {
               "family": "Roboto",
-              "size": 52,
+              "size": 32,
               "sizeUnit": "px",
               "style": "normal",
               "weight": "500",
               "lineHeight": "1"
             },
             "valueColor": "#43A047",
-            "showDate": true,
-            "dateFormat": {
-              "format": null,
-              "lastUpdateAgo": true,
-              "custom": false,
-              "auto": true
-            },
-            "dateFont": {
-              "family": "Roboto",
-              "size": 12,
-              "sizeUnit": "px",
-              "style": "normal",
-              "weight": "400",
-              "lineHeight": "24px"
-            },
-            "dateColor": "rgba(0,0,0,0.38)",
+            "showDate": false,
             "background": {
               "type": "color",
               "color": "#fff",
@@ -227,7 +197,7 @@
         "typeFullFqn": "system.cards.simple_card",
         "type": "latest",
         "sizeX": 8,
-        "sizeY": 3,
+        "sizeY": 2,
         "config": {
           "datasources": [
             {
@@ -266,8 +236,8 @@
           "color": "rgba(0,0,0,0.87)",
           "padding": "0px",
           "settings": {
-            "layout": "horizontal",
-            "autoScale": true,
+            "layout": "vertical",
+            "autoScale": false,
             "showLabel": true,
             "labelFont": {
               "family": "Roboto",
@@ -275,35 +245,20 @@
               "sizeUnit": "px",
               "style": "normal",
               "weight": "400",
-              "lineHeight": "1"
+              "lineHeight": "1.5"
             },
             "labelColor": "rgba(0,0,0,0.38)",
             "showIcon": false,
             "valueFont": {
               "family": "Roboto",
-              "size": 52,
+              "size": 32,
               "sizeUnit": "px",
               "style": "normal",
               "weight": "500",
               "lineHeight": "1"
             },
             "valueColor": "#FB8C00",
-            "showDate": true,
-            "dateFormat": {
-              "format": null,
-              "lastUpdateAgo": true,
-              "custom": false,
-              "auto": true
-            },
-            "dateFont": {
-              "family": "Roboto",
-              "size": 12,
-              "sizeUnit": "px",
-              "style": "normal",
-              "weight": "400",
-              "lineHeight": "24px"
-            },
-            "dateColor": "rgba(0,0,0,0.38)",
+            "showDate": false,
             "background": {
               "type": "color",
               "color": "#fff",
@@ -1464,63 +1419,85 @@
           "useDashboardTimewindow": false,
           "showLegend": false,
           "alarmSource": {
-            "type": "entityAlias",
+            "type": "entity",
+            "name": "alarms",
             "entityAliasId": "all-demo-devices",
+            "filterId": null,
             "dataKeys": [
               {
                 "name": "createdTime",
                 "type": "alarm",
                 "label": "Created time",
                 "color": "#2196f3",
-                "settings": {}
+                "settings": {
+                  "useCellStyleFunction": false,
+                  "cellStyleFunction": "",
+                  "useCellContentFunction": false,
+                  "cellContentFunction": ""
+                }
               },
               {
                 "name": "originatorDisplayName",
                 "type": "alarm",
                 "label": "Device",
                 "color": "#4caf50",
-                "settings": {}
+                "settings": {
+                  "useCellStyleFunction": false,
+                  "cellStyleFunction": "",
+                  "useCellContentFunction": false,
+                  "cellContentFunction": ""
+                }
               },
               {
                 "name": "type",
                 "type": "alarm",
                 "label": "Type",
                 "color": "#f44336",
-                "settings": {}
+                "settings": {
+                  "useCellStyleFunction": false,
+                  "cellStyleFunction": "",
+                  "useCellContentFunction": false,
+                  "cellContentFunction": ""
+                }
               },
               {
                 "name": "severity",
                 "type": "alarm",
                 "label": "Severity",
                 "color": "#ffc107",
-                "settings": {}
+                "settings": {
+                  "useCellStyleFunction": false,
+                  "useCellContentFunction": false
+                }
               },
               {
                 "name": "status",
                 "type": "alarm",
                 "label": "Status",
                 "color": "#607d8b",
-                "settings": {}
+                "settings": {
+                  "useCellStyleFunction": false,
+                  "cellStyleFunction": "",
+                  "useCellContentFunction": false,
+                  "cellContentFunction": ""
+                }
               }
-            ],
-            "alarmFilterConfig": {
-              "statusList": [
-                "ACTIVE"
-              ]
-            }
+            ]
           },
+          "alarmFilterConfig": {
+            "statusList": [],
+            "severityList": [],
+            "typeList": [],
+            "searchPropagatedAlarms": true
+          },
+          "alarmsMaxCountLoad": 0,
+          "alarmsFetchSize": 100,
           "alarmsPollingInterval": 5,
           "displayTimewindow": true,
           "enableFullscreen": true,
           "dropShadow": true,
           "configMode": "basic",
           "actions": {},
-          "alarmFilterConfig": {
-            "statusList": [],
-            "severityList": [],
-            "typeList": [],
-            "searchPropagatedAlarms": false
-          },
           "datasources": [],
           "titleTooltip": "",
           "widgetStyle": {},
@@ -1540,38 +1517,38 @@
             "widgets": {
               "card-temp-1": {
                 "sizeX": 8,
-                "sizeY": 3,
+                "sizeY": 2,
                 "row": 0,
                 "col": 0
               },
               "card-temp-2": {
                 "sizeX": 8,
-                "sizeY": 3,
+                "sizeY": 2,
                 "row": 0,
                 "col": 8
               },
               "card-temp-3": {
                 "sizeX": 8,
-                "sizeY": 3,
+                "sizeY": 2,
                 "row": 0,
                 "col": 16
               },
               "temp-chart-all": {
                 "sizeX": 24,
                 "sizeY": 8,
-                "row": 3,
+                "row": 2,
                 "col": 0
               },
               "anomaly-chart": {
                 "sizeX": 24,
                 "sizeY": 7,
-                "row": 11,
+                "row": 10,
                 "col": 0
               },
               "alarms-table": {
                 "sizeX": 24,
                 "sizeY": 6,
-                "row": 18,
+                "row": 17,
                 "col": 0
               }
             },
