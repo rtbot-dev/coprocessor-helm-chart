@@ -2,7 +2,7 @@ apiVersion: v2
 name: coprocessor
 description: Helm chart for deploying the coprocessor integration.
 type: application
-version: 0.3.1
+version: 0.4.0
 home: https://github.com/rtbot-dev/coprocessor-helm-chart
 sources:
   - https://github.com/rtbot-dev/coprocessor-helm-chart
