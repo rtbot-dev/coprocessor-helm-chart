@@ -158,12 +158,74 @@ data:
         return "", ""
 
 
+    def provision_alarm_rules(auth_headers, device_profile_id):
+        profile = tb_request("GET", "/api/deviceProfile/%s" % device_profile_id, auth_headers=auth_headers)
+        alarm_rules = [
+            {
+                "id": "high_anomaly_score",
+                "alarmType": "high_anomaly_score",
+                "createRules": {
+                    "WARNING": {
+                        "condition": {
+                            "condition": [
+                                {
+                                    "key": {"type": "TIME_SERIES", "key": "anomaly_score"},
+                                    "valueType": "NUMERIC",
+                                    "predicate": {
+                                        "type": "NUMERIC",
+                                        "operation": "GREATER",
+                                        "value": {"defaultValue": 10.0, "userValue": None, "dynamicValue": None},
+                                    },
+                                }
+                            ],
+                            "spec": {"type": "SIMPLE"},
+                        },
+                        "schedule": None,
+                        "alarmDetails": None,
+                        "dashboardId": None,
+                    }
+                },
+                "clearRule": {
+                    "condition": {
+                        "condition": [
+                            {
+                                "key": {"type": "TIME_SERIES", "key": "anomaly_score"},
+                                "valueType": "NUMERIC",
+                                "predicate": {
+                                    "type": "NUMERIC",
+                                    "operation": "LESS_OR_EQUAL",
+                                    "value": {"defaultValue": 10.0, "userValue": None, "dynamicValue": None},
+                                },
+                            }
+                        ],
+                        "spec": {"type": "SIMPLE"},
+                    },
+                    "schedule": None,
+                    "alarmDetails": None,
+                    "dashboardId": None,
+                },
+                "propagate": False,
+                "propagateToOwner": False,
+                "propagateToTenant": False,
+                "propagateRelationTypes": [],
+            }
+        ]
+        profile["profileData"]["alarms"] = alarm_rules
+        tb_request("POST", "/api/deviceProfile", payload=profile, auth_headers=auth_headers)
+        log("provisioned alarm rule 'high_anomaly_score' on device profile %s" % device_profile_id)
+
+
     def main():
         wait_for_redis()
         auth_headers = tb_auth()
         device_token, device_id = ensure_demo_device_token(auth_headers)
         if device_token:
             redis_set_device_token(os.environ["DEMO_DEVICE_NAME"], device_token)
+        alarm_rules_enabled = os.environ.get("DEMO_ALARM_RULES_ENABLED", "").lower() in ("true", "1", "yes")
+        if alarm_rules_enabled and auth_headers and device_id:
+            device = tb_request("GET", "/api/device/%s" % device_id, auth_headers=auth_headers)
+            profile_id = device["deviceProfileId"]["id"]
+            provision_alarm_rules(auth_headers, profile_id)
         return 0
 
 
