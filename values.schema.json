@@ -387,6 +387,19 @@
     "sqlRunner": {
       "type": "object",
       "properties": {
+        "waitForRedis": {
+          "type": "object",
+          "properties": {
+            "maxRetries": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "retryDelaySeconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
         "extraEnv": {
           "type": "array"
         },

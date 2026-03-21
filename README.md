@@ -42,7 +42,7 @@ In a real cluster, the simplest first try is to install the chart into that exis
 
 ```bash
 helm upgrade --install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.1.1 \
+  --version 0.1.2 \
   --namespace thingsboard \
   --set demo.admin.username=tenant@thingsboard.org \
   --set demo.admin.password=tenant
@@ -117,14 +117,14 @@ Pull a released chart locally:
 
 ```bash
 helm pull oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.1.1
+  --version 0.1.2
 ```
 
 Install directly from GHCR:
 
 ```bash
 helm install coprocessor oci://ghcr.io/rtbot-dev/helm-charts/coprocessor \
-  --version 0.1.1 \
+  --version 0.1.2 \
   --set demo.admin.username=tenant@thingsboard.org \
   --set demo.admin.password=tenant
 ```
@@ -207,6 +207,7 @@ For production or other professional deployments, treat these as the main overri
 
 - `images.*`: pin repositories and tags that match your registry policy; the base chart defaults `images.rtbotRedis.repository` to `ghcr.io/rtbot-dev/rtbot-redis`
 - `rtbotRedis.resources`, `connect.resources`, `sqlRunner.resources`: set requests and limits explicitly
+- `sqlRunner.waitForRedis.*`: increase or decrease how long the SQL bootstrap job waits for `rtbot-redis` to become reachable
 - `persistence.size`, `persistence.storageClassName`, `persistence.annotations`: match your storage tier
 - `commonLabels`, `commonAnnotations`, `service.labels`, `statefulset.annotations`, `podAnnotations`: integrate with cluster policy and inventory tooling
 - `nodeSelector`, `tolerations`, `affinity`: place workloads onto the right nodes

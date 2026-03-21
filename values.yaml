@@ -140,6 +140,9 @@ rtbotRedis:
   resources: {}
 
 sqlRunner:
+  waitForRedis:
+    maxRetries: 180
+    retryDelaySeconds: 2
   extraEnvFrom: []
   extraEnv: []
   resources: {}
