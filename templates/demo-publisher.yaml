@@ -32,7 +32,7 @@ spec:
             - /demo/publisher.py
           env:
             - name: DEMO_INGEST_URL
-              value: {{ printf "http://%s:%v%s" (include "coprocessor.fullname" .) .Values.service.port (replace "{stream_name}" .Values.demo.ingressStream .Values.connect.ingress.path) | quote }}
+              value: {{ printf "http://%s:%v/ingress%s" (include "coprocessor.fullname" .) .Values.service.port (replace "{stream_name}" .Values.demo.ingressStream .Values.connect.ingress.path) | quote }}
             - name: DEMO_DEVICE_NAME
               value: {{ .Values.demo.device.name | quote }}
             - name: DEMO_DEVICE_HEADER
