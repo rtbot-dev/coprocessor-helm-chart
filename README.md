@@ -1,6 +1,20 @@
 # Coprocessor Helm Chart
 
-![Coprocessor design preview](assets/coprocessor-design.svg)
+<p align="center">
+  <img src="assets/coprocessor-design.svg" alt="Coprocessor design preview" width="416" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/rtbot-dev/coprocessor-helm-chart">
+    <img alt="Helm Chart" src="https://img.shields.io/badge/helm-chart-0f1689?logo=helm&logoColor=white" />
+  </a>
+  <a href="https://github.com/rtbot-dev/platform/pkgs/container/helm-charts%2Fcoprocessor">
+    <img alt="GHCR Chart" src="https://img.shields.io/badge/ghcr-chart-0969da?logo=github&logoColor=white" />
+  </a>
+  <a href="https://github.com/rtbot-dev/platform/pkgs/container/rtbot-redis">
+    <img alt="RtBot Runtime Image" src="https://img.shields.io/badge/ghcr-rtbot--redis-0969da?logo=docker&logoColor=white" />
+  </a>
+</p>
 
 The `coprocessor` chart lets ThingsBoard users run RtBot SQL on live device telemetry without hand-wiring the runtime stack. Install it beside an existing ThingsBoard deployment, and the chart now starts in a default-on demo mode that continuously emits telemetry, loads demo SQL, and can publish derived signals back into ThingsBoard. Later, disable the demo and provide your own SQL for a more professional deployment shape.
 
