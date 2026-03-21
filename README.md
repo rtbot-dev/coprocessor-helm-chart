@@ -5,14 +5,17 @@
 </p>
 
 <p align="center">
+  <a href="#quick-start">
+    <img alt="ThingsBoard Compatible" src="https://img.shields.io/badge/thingsboard-compatible-0f766e" />
+  </a>
   <a href="https://github.com/rtbot-dev/coprocessor-helm-chart">
-    <img alt="Helm Chart" src="https://img.shields.io/badge/helm-chart-0f1689?logo=helm&logoColor=white" />
+    <img alt="OCI Helm Chart" src="https://img.shields.io/badge/oci-helm%20chart-0f1689?logo=helm&logoColor=white" />
   </a>
-  <a href="https://github.com/rtbot-dev/platform/pkgs/container/helm-charts%2Fcoprocessor">
-    <img alt="GHCR Chart" src="https://img.shields.io/badge/ghcr-chart-0969da?logo=github&logoColor=white" />
+  <a href="#sql-packaging-guidance">
+    <img alt="RtBot SQL Ready" src="https://img.shields.io/badge/rtbot-sql%20ready-7c3aed" />
   </a>
-  <a href="https://github.com/rtbot-dev/platform/pkgs/container/rtbot-redis">
-    <img alt="RtBot Runtime Image" src="https://img.shields.io/badge/ghcr-rtbot--redis-0969da?logo=docker&logoColor=white" />
+  <a href="#demo-install-path">
+    <img alt="Demo Mode On" src="https://img.shields.io/badge/demo-mode%20on-f59e0b" />
   </a>
 </p>
 
